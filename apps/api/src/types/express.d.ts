@@ -1,7 +1,7 @@
 import type { Request } from "express";
 
 export type ApiKeyAuthContext = {
-  apiKeyId: string;
+  apiKeyId?: string;
   workspaceId: string;
   orgId: string;
   keyName: string;

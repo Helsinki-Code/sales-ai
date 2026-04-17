@@ -11,11 +11,18 @@ import { supabaseAdmin } from "../lib/supabase.js";
 export const adminRouter = Router();
 adminRouter.use(requireUserSession);
 
+function getRequiredParam(value: string | string[] | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 adminRouter.post("/workspaces/:workspaceId/provider-credentials", validateBody(upsertProviderCredentialSchema), async (req, res, next) => {
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
 
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
     const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
@@ -32,7 +39,8 @@ adminRouter.put("/workspaces/:workspaceId/model-policies", validateBody(upsertMo
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
 
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
     const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
@@ -49,7 +57,8 @@ adminRouter.post("/workspaces/:workspaceId/api-keys", validateBody(createApiKeyS
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
 
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
     const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
@@ -73,7 +82,8 @@ adminRouter.post("/workspaces/:workspaceId/api-keys", validateBody(createApiKeyS
 adminRouter.get("/workspaces/:workspaceId/usage", async (req, res, next) => {
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
     const from = typeof req.query.from === "string" ? req.query.from : undefined;
@@ -100,7 +110,8 @@ adminRouter.get("/workspaces/:workspaceId/usage", async (req, res, next) => {
 adminRouter.get("/workspaces/:workspaceId/api-keys", async (req, res, next) => {
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
     const { data, error } = await supabaseAdmin
@@ -120,11 +131,15 @@ adminRouter.get("/workspaces/:workspaceId/api-keys", async (req, res, next) => {
 adminRouter.delete("/workspaces/:workspaceId/api-keys/:apiKeyId", async (req, res, next) => {
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
-    await revokeApiKey(req.params.apiKeyId);
-    return res.json({ success: true, data: { apiKeyId: req.params.apiKeyId, status: "revoked" } });
+    const apiKeyId = getRequiredParam(req.params.apiKeyId);
+    if (!apiKeyId) return res.status(400).json({ success: false, error: { code: "INVALID_API_KEY_ID", message: "apiKeyId route param is required." } });
+
+    await revokeApiKey(apiKeyId);
+    return res.json({ success: true, data: { apiKeyId, status: "revoked" } });
   } catch (error) {
     return next(error);
   }
@@ -133,17 +148,21 @@ adminRouter.delete("/workspaces/:workspaceId/api-keys/:apiKeyId", async (req, re
 adminRouter.post("/workspaces/:workspaceId/api-keys/:apiKeyId/rotate", async (req, res, next) => {
   try {
     if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
-    const workspaceId = req.params.workspaceId;
+    const workspaceId = getRequiredParam(req.params.workspaceId);
+    if (!workspaceId) return res.status(400).json({ success: false, error: { code: "INVALID_WORKSPACE_ID", message: "workspaceId route param is required." } });
     await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
 
-    const { data: current } = await supabaseAdmin.from("api_keys").select("name,org_id,expires_at").eq("id", req.params.apiKeyId).single();
+    const apiKeyId = getRequiredParam(req.params.apiKeyId);
+    if (!apiKeyId) return res.status(400).json({ success: false, error: { code: "INVALID_API_KEY_ID", message: "apiKeyId route param is required." } });
+
+    const { data: current } = await supabaseAdmin.from("api_keys").select("name,org_id,expires_at").eq("id", apiKeyId).single();
     if (!current) throw new Error("API key not found.");
 
-    const { data: scopeRows } = await supabaseAdmin.from("api_key_scopes").select("scope").eq("api_key_id", req.params.apiKeyId);
+    const { data: scopeRows } = await supabaseAdmin.from("api_key_scopes").select("scope").eq("api_key_id", apiKeyId);
     const scopes = (scopeRows ?? []).map((row) => row.scope);
 
     const rotated = await rotateApiKey({
-      apiKeyId: req.params.apiKeyId,
+      apiKeyId,
       orgId: current.org_id,
       workspaceId,
       name: current.name,

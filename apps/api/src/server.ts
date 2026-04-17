@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import type { Request, RequestHandler, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { getEnv } from "./config/env.js";
 import { logger } from "./lib/logger.js";
@@ -20,15 +21,16 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
+const pinoHttpMiddleware = pinoHttp as unknown as (opts: Record<string, unknown>) => RequestHandler;
 app.use(
-  pinoHttp({
+  pinoHttpMiddleware({
     logger,
-    customLogLevel: (_req, res, err) => {
+    customLogLevel: (_req: Request, res: Response, err?: Error) => {
       if (err || res.statusCode >= 500) return "error";
       if (res.statusCode >= 400) return "warn";
       return "info";
     },
-    customProps: (req) => ({ requestId: req.requestId })
+    customProps: (req: Request) => ({ requestId: req.requestId })
   })
 );
 
