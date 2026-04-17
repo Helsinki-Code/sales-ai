@@ -1,3 +1,4 @@
+import http from "node:http";
 import { Queue, Worker } from "bullmq";
 import { getEnv } from "./config.js";
 import { logger } from "./logger.js";
@@ -39,3 +40,18 @@ worker.on("failed", async (job, err) => {
 });
 
 logger.info("Worker started and awaiting jobs");
+
+const port = Number(process.env.PORT ?? 8080);
+const healthServer = http.createServer((req, res) => {
+  if (req.url === "/healthz") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true, service: "sales-ai-worker" }));
+    return;
+  }
+  res.writeHead(200, { "content-type": "text/plain" });
+  res.end("sales-ai-worker");
+});
+
+healthServer.listen(port, () => {
+  logger.info({ port }, "Worker health server listening");
+});
