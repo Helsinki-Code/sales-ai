@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { getSharedConfig } from "../config.js";
 import type { ToolResult } from "../types.js";
 

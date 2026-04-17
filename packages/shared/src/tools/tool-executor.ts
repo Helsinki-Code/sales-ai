@@ -1,4 +1,4 @@
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { webFetch } from "./web-fetch.js";
 import { webSearch } from "./web-search.js";
 import type { ToolResult } from "../types.js";

@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { getSharedConfig } from "../config.js";
 import { executeTool } from "../tools/tool-executor.js";
 import { toolDefinitions } from "../tools/tool-definitions.js";

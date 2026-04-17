@@ -1,4 +1,4 @@
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { loadSkillPrompt } from "../prompts/loader.js";
 import { runAgent } from "./base-agent.js";
 import type { SalesEndpoint, RunAgentResult } from "../types.js";
