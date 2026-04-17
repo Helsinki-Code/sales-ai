@@ -7,9 +7,15 @@ function getBearerToken(header: string | undefined): string | null {
   return header.slice(7).trim();
 }
 
+function getSupabaseSessionToken(req: Parameters<RequestHandler>[0]): string | null {
+  const explicit = req.header("x-supabase-access-token");
+  if (explicit && explicit.trim().length > 0) return explicit.trim();
+  return getBearerToken(req.header("authorization"));
+}
+
 export const requireUserSession: RequestHandler = async (req, res, next) => {
   try {
-    const token = getBearerToken(req.header("authorization"));
+    const token = getSupabaseSessionToken(req);
     if (!token) {
       return res.status(401).json({
         success: false,

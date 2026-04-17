@@ -9,6 +9,12 @@ function normalizeBearer(reqAuth: string | undefined): string | null {
   return token.length > 0 ? token : null;
 }
 
+function getAuthToken(req: Parameters<RequestHandler>[0]): string | null {
+  const explicit = req.header("x-supabase-access-token");
+  if (explicit && explicit.trim().length > 0) return explicit.trim();
+  return normalizeBearer(req.header("authorization"));
+}
+
 async function resolveApiKeyAuth(token: string, requiredScope?: string): Promise<{ ok: boolean; auth?: any; errorCode?: string; errorMessage?: string }> {
   const tokenHash = sha256(token);
   const { data: apiKey, error } = await supabaseAdmin
@@ -65,7 +71,7 @@ async function resolveOAuthUserAuth(token: string): Promise<{ ok: boolean; auth?
 export function requireApiKeyOrOAuth(requiredScope?: string): RequestHandler {
   return async (req, res, next) => {
     try {
-      const token = normalizeBearer(req.header("authorization"));
+      const token = getAuthToken(req);
       if (!token) {
         return res.status(401).json({
           success: false,
