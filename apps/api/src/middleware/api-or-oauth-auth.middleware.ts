@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { sha256 } from "@sales-ai/shared";
-import { supabaseAdmin, supabaseAnon } from "../lib/supabase.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 
 function normalizeBearer(reqAuth: string | undefined): string | null {
   if (!reqAuth) return null;
@@ -60,7 +60,7 @@ async function resolveApiKeyAuth(token: string, requiredScope?: string): Promise
 }
 
 async function resolveOAuthUserAuth(token: string): Promise<{ ok: boolean; auth?: any; errorCode?: string; errorMessage?: string }> {
-  const { data, error } = await supabaseAnon.auth.getUser(token);
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return { ok: false };
 
   return {

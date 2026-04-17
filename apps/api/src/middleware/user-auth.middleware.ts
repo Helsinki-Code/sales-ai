@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { supabaseAnon } from "../lib/supabase.js";
+import { supabaseAdmin } from "../lib/supabase.js";
 
 function getBearerToken(header: string | undefined): string | null {
   if (!header) return null;
@@ -23,7 +23,7 @@ export const requireUserSession: RequestHandler = async (req, res, next) => {
       });
     }
 
-    const { data, error } = await supabaseAnon.auth.getUser(token);
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !data.user) {
       return res.status(401).json({
         success: false,
