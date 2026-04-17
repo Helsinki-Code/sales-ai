@@ -10,8 +10,12 @@ function normalizeBearer(reqAuth: string | undefined): string | null {
 }
 
 function getAuthToken(req: Parameters<RequestHandler>[0]): string | null {
+  const appApiKey = req.header("x-app-api-key");
+  if (appApiKey && appApiKey.trim().length > 0) return appApiKey.trim();
+
   const explicit = req.header("x-supabase-access-token");
   if (explicit && explicit.trim().length > 0) return explicit.trim();
+
   return normalizeBearer(req.header("authorization"));
 }
 
@@ -75,7 +79,7 @@ export function requireApiKeyOrOAuth(requiredScope?: string): RequestHandler {
       if (!token) {
         return res.status(401).json({
           success: false,
-          error: { code: "MISSING_AUTH", message: "Authorization Bearer token is required." }
+          error: { code: "MISSING_AUTH", message: "Provide x-app-api-key or x-supabase-access-token or Authorization Bearer token." }
         });
       }
 
