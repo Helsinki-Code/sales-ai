@@ -9,6 +9,7 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY apps/worker ./apps/worker
 COPY packages/shared ./packages/shared
+COPY vendor ./vendor
 RUN npm run build -w @sales-ai/shared && npm run build -w @sales-ai/worker
 
 FROM node:20-alpine AS runtime
