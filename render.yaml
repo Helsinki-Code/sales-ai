@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: sales-ai-api
+    runtime: node
+    rootDir: sales-ai
+    buildCommand: npm install && npm run build -w @sales-ai/shared && npm run build -w @sales-ai/api
+    startCommand: npm run start -w @sales-ai/api
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000
+      - key: API_BASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: BULLMQ_PREFIX
+        value: sales-ai
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: INTERNAL_ENCRYPTION_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SALES_SKILLS_DIR
+        value: ./vendor/ai-sales-team/skills
+      - key: SALES_SCRIPTS_DIR
+        value: ./vendor/ai-sales-team/scripts
+
+  - type: worker
+    name: sales-ai-worker
+    runtime: node
+    rootDir: sales-ai
+    buildCommand: npm install && npm run build -w @sales-ai/shared && npm run build -w @sales-ai/worker
+    startCommand: npm run start -w @sales-ai/worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        sync: false
+      - key: BULLMQ_PREFIX
+        value: sales-ai
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: INTERNAL_ENCRYPTION_KEY
+        sync: false
+      - key: SALES_SKILLS_DIR
+        value: ./vendor/ai-sales-team/skills
+      - key: SALES_SCRIPTS_DIR
+        value: ./vendor/ai-sales-team/scripts

@@ -1,0 +1,159 @@
+import { Router } from "express";
+import { requireUserSession } from "../middleware/user-auth.middleware.js";
+import { validateBody } from "../middleware/validate.middleware.js";
+import { createApiKeySchema, upsertModelPoliciesSchema, upsertProviderCredentialSchema } from "../schemas/admin.schemas.js";
+import { assertWorkspaceAccess } from "../services/workspace-access.service.js";
+import { createApiKey, revokeApiKey, rotateApiKey } from "../services/api-keys.service.js";
+import { upsertAnthropicApiKey } from "../services/provider-credentials.service.js";
+import { upsertModelPolicies } from "../services/model-policy.service.js";
+import { supabaseAdmin } from "../lib/supabase.js";
+
+export const adminRouter = Router();
+adminRouter.use(requireUserSession);
+
+adminRouter.post("/workspaces/:workspaceId/provider-credentials", validateBody(upsertProviderCredentialSchema), async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
+    if (!workspace) throw new Error("Workspace not found.");
+
+    await upsertAnthropicApiKey(workspaceId, workspace.org_id, req.userAuth.userId, req.body.apiKey);
+    return res.json({ success: true, data: { workspaceId, provider: "anthropic", status: "active" } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.put("/workspaces/:workspaceId/model-policies", validateBody(upsertModelPoliciesSchema), async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
+    if (!workspace) throw new Error("Workspace not found.");
+
+    await upsertModelPolicies(workspaceId, workspace.org_id, req.userAuth.userId, req.body.policies);
+    return res.json({ success: true, data: { workspaceId, updated: req.body.policies.length } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.post("/workspaces/:workspaceId/api-keys", validateBody(createApiKeySchema), async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
+    if (!workspace) throw new Error("Workspace not found.");
+
+    const { apiKeyId, token } = await createApiKey({
+      orgId: workspace.org_id,
+      workspaceId,
+      name: req.body.name,
+      scopes: req.body.scopes,
+      createdBy: req.userAuth.userId,
+      expiresAt: req.body.expiresAt
+    });
+
+    return res.status(201).json({ success: true, data: { apiKeyId, token } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.get("/workspaces/:workspaceId/usage", async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const from = typeof req.query.from === "string" ? req.query.from : undefined;
+    const to = typeof req.query.to === "string" ? req.query.to : undefined;
+
+    let query = supabaseAdmin
+      .from("usage_daily_rollups")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd")
+      .eq("workspace_id", workspaceId)
+      .order("usage_date", { ascending: false })
+      .limit(180);
+
+    if (from) query = query.gte("usage_date", from);
+    if (to) query = query.lte("usage_date", to);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.get("/workspaces/:workspaceId/api-keys", async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const { data, error } = await supabaseAdmin
+      .from("api_keys")
+      .select("id,name,status,last_used_at,expires_at,created_at,revoked_at")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.delete("/workspaces/:workspaceId/api-keys/:apiKeyId", async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    await revokeApiKey(req.params.apiKeyId);
+    return res.json({ success: true, data: { apiKeyId: req.params.apiKeyId, status: "revoked" } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminRouter.post("/workspaces/:workspaceId/api-keys/:apiKeyId/rotate", async (req, res, next) => {
+  try {
+    if (!req.userAuth) return res.status(401).json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    const workspaceId = req.params.workspaceId;
+    await assertWorkspaceAccess(workspaceId, req.userAuth.userId);
+
+    const { data: current } = await supabaseAdmin.from("api_keys").select("name,org_id,expires_at").eq("id", req.params.apiKeyId).single();
+    if (!current) throw new Error("API key not found.");
+
+    const { data: scopeRows } = await supabaseAdmin.from("api_key_scopes").select("scope").eq("api_key_id", req.params.apiKeyId);
+    const scopes = (scopeRows ?? []).map((row) => row.scope);
+
+    const rotated = await rotateApiKey({
+      apiKeyId: req.params.apiKeyId,
+      orgId: current.org_id,
+      workspaceId,
+      name: current.name,
+      scopes,
+      createdBy: req.userAuth.userId,
+      expiresAt: current.expires_at ?? undefined
+    });
+
+    return res.json({ success: true, data: rotated });
+  } catch (error) {
+    return next(error);
+  }
+});
