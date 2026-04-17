@@ -28,6 +28,7 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
   const messages: any[] = [{ role: "user", content: input.userPrompt }];
   let turns = 0;
   let toolCalls = 0;
+  let accumulatedText = "";
 
   while (turns < config.maxAgentTurns) {
     turns += 1;
@@ -37,15 +38,20 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
       system: input.systemPrompt,
       messages,
       tools: toolDefinitions as any,
-      max_tokens: input.maxTokens ?? 4096,
+      max_tokens: input.maxTokens ?? 8192,
       temperature: 0.2
     });
 
     messages.push({ role: "assistant", content: response.content });
+    const responseText = (response.content ?? [])
+      .filter((block: any) => block.type === "text")
+      .map((b: any) => b.text)
+      .join("\n")
+      .trim();
+    if (responseText) accumulatedText = accumulatedText ? `${accumulatedText}\n${responseText}` : responseText;
 
-    if (response.stop_reason === "end_turn") {
-      const textBlocks = (response.content ?? []).filter((block: any) => block.type === "text");
-      const rawText = textBlocks.map((b: any) => b.text).join("\n").trim();
+    if (response.stop_reason === "end_turn" || response.stop_reason === "stop_sequence") {
+      const rawText = accumulatedText || responseText;
       const extracted = extractJsonObject(rawText);
       const parsed = safeJsonParse<T>(extracted);
       if (!parsed) {
@@ -64,6 +70,14 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
         durationMs: Date.now() - started,
         toolCalls
       };
+    }
+
+    if (response.stop_reason === "max_tokens") {
+      messages.push({
+        role: "user",
+        content: "Continue exactly where you stopped. Return only the remaining JSON content with no markdown or explanations."
+      });
+      continue;
     }
 
     if (response.stop_reason === "tool_use") {
