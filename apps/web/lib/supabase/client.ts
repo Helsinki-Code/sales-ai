@@ -12,5 +12,5 @@ export function createClient() {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL and publishable/anon key");
   }
 
-  return createBrowserClient(url, key);
+  return createBrowserClient(url, key) as any;
 }

@@ -11,7 +11,7 @@ type AuthDetails = {
 };
 
 export default function OAuthConsentPage() {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const searchParams = useSearchParams();
   const router = useRouter();
   const authorizationId = searchParams.get("authorization_id");

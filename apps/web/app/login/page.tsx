@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sent" | "error">("idle");

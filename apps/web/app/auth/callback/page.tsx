@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AuthCallbackPage() {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const router = useRouter();
   const searchParams = useSearchParams();
 
