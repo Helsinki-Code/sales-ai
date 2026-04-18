@@ -10,10 +10,13 @@ export default function LoginContent() {
   const nextPath = searchParams.get("redirect") ?? "/dashboard";
   const isOAuthFlow = nextPath.includes("authorization_id");
 
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const supabase = createClient() as any;
 
@@ -35,6 +38,44 @@ export default function LoginContent() {
       }
 
       router.replace(nextPath);
+    } catch (err) {
+      setError("An unexpected error occurred");
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      setSuccess("Account created! Check your email to verify, then sign in.");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setLoading(false);
     } catch (err) {
       setError("An unexpected error occurred");
       setLoading(false);
@@ -90,64 +131,169 @@ export default function LoginContent() {
 
   return (
     <main className="container main-section">
-      <h1 className="page-title">Sign In</h1>
+      <h1 className="page-title">{isOAuthFlow ? "Authenticate" : "Sign In"}</h1>
       <div className="card" style={{ maxWidth: "400px" }}>
         {isOAuthFlow ? (
           <>
-            <p style={{ color: "var(--slate)", marginBottom: "1.5rem", textAlign: "center" }}>
-              Sign in to approve this request
-            </p>
-            <form onSubmit={handlePasswordSignIn}>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border)",
-                    fontSize: "1rem",
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border)",
-                    fontSize: "1rem",
-                  }}
-                />
-              </div>
-              {error && (
-                <p style={{ color: "red", marginBottom: "1rem", fontSize: "0.9rem" }}>
-                  {error}
-                </p>
-              )}
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border)" }}>
               <button
-                type="submit"
-                disabled={loading}
-                className="cta"
-                style={{ width: "100%", cursor: loading ? "not-allowed" : "pointer" }}
+                onClick={() => { setMode("signin"); setError(null); }}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem",
+                  border: "none",
+                  background: mode === "signin" ? "var(--mint)" : "transparent",
+                  color: mode === "signin" ? "var(--ink)" : "var(--slate)",
+                  cursor: "pointer",
+                  fontWeight: mode === "signin" ? "600" : "400",
+                }}
               >
-                {loading ? "Signing in..." : "Sign In"}
+                Sign In
               </button>
-            </form>
+              <button
+                onClick={() => { setMode("signup"); setError(null); }}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem",
+                  border: "none",
+                  background: mode === "signup" ? "var(--mint)" : "transparent",
+                  color: mode === "signup" ? "var(--ink)" : "var(--slate)",
+                  cursor: "pointer",
+                  fontWeight: mode === "signup" ? "600" : "400",
+                }}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {mode === "signin" ? (
+              <form onSubmit={handlePasswordSignIn}>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+                {error && (
+                  <p style={{ color: "red", marginBottom: "1rem", fontSize: "0.9rem" }}>
+                    {error}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="cta"
+                  style={{ width: "100%", cursor: loading ? "not-allowed" : "pointer" }}
+                >
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSignUp}>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      borderRadius: "4px",
+                      border: "1px solid var(--border)",
+                      fontSize: "1rem",
+                    }}
+                  />
+                </div>
+                {error && (
+                  <p style={{ color: "red", marginBottom: "1rem", fontSize: "0.9rem" }}>
+                    {error}
+                  </p>
+                )}
+                {success && (
+                  <p style={{ color: "green", marginBottom: "1rem", fontSize: "0.9rem" }}>
+                    {success}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="cta"
+                  style={{ width: "100%", cursor: loading ? "not-allowed" : "pointer" }}
+                >
+                  {loading ? "Creating account..." : "Sign Up"}
+                </button>
+              </form>
+            )}
           </>
         ) : (
           <>
