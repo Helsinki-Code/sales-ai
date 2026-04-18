@@ -26,8 +26,8 @@ export default function UsagePage() {
     const from = new Date(to);
     from.setDate(from.getDate() - 30);
 
-    setFromDate(from.toISOString().split("T")[0]);
-    setToDate(to.toISOString().split("T")[0]);
+    setFromDate(from.toISOString().split("T")[0] || "");
+    setToDate(to.toISOString().split("T")[0] || "");
   }, []);
 
   useEffect(() => {
