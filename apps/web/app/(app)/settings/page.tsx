@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ApiKeysSection } from "@/components/settings/api-keys-section";
+import { useState } from "react";
 import { ProviderCredentialsSection } from "@/components/settings/provider-credentials-section";
+import { ModelPoliciesSection } from "@/components/settings/model-policies-section";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"credentials" | "keys">("credentials");
+  const [activeTab, setActiveTab] = useState<"credentials" | "policies">("credentials");
 
   return (
     <main>
@@ -28,23 +28,23 @@ export default function SettingsPage() {
             Provider Credentials
           </button>
           <button
-            onClick={() => setActiveTab("keys")}
+            onClick={() => setActiveTab("policies")}
             style={{
               padding: "0.75rem 1.5rem",
               border: "none",
               background: "none",
-              borderBottom: activeTab === "keys" ? "2px solid var(--accent)" : "none",
+              borderBottom: activeTab === "policies" ? "2px solid var(--accent)" : "none",
               cursor: "pointer",
-              fontWeight: activeTab === "keys" ? "600" : "400",
-              color: activeTab === "keys" ? "var(--ink)" : "var(--slate)"
+              fontWeight: activeTab === "policies" ? "600" : "400",
+              color: activeTab === "policies" ? "var(--ink)" : "var(--slate)"
             }}
           >
-            API Keys
+            Model Policies
           </button>
         </div>
 
         {activeTab === "credentials" && <ProviderCredentialsSection />}
-        {activeTab === "keys" && <ApiKeysSection />}
+        {activeTab === "policies" && <ModelPoliciesSection />}
       </div>
     </main>
   );
