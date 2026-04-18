@@ -9,10 +9,10 @@ const ALL_ENDPOINTS = [...SYNC_ENDPOINTS, ...ASYNC_ENDPOINTS];
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { endpoint: string } }
+  { params }: { params: Promise<{ endpoint: string }> }
 ) {
   try {
-    const endpoint = params.endpoint;
+    const { endpoint } = await params;
 
     // Validate endpoint
     if (!ALL_ENDPOINTS.includes(endpoint)) {

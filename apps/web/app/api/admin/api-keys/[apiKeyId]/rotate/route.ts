@@ -6,9 +6,10 @@ const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-4685260
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { apiKeyId: string } }
+  { params }: { params: Promise<{ apiKeyId: string }> }
 ) {
   try {
+    const { apiKeyId } = await params;
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -22,7 +23,7 @@ export async function POST(
     const workspaceId = await getWorkspaceId(session.user.id);
 
     const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys/${params.apiKeyId}/rotate`,
+      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys/${apiKeyId}/rotate`,
       {
         method: "POST",
         headers: {

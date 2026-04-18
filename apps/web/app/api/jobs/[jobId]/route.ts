@@ -5,10 +5,10 @@ const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-4685260
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     // Resolve auth (API key or session)
     const auth = await resolveAuth(request);
@@ -54,10 +54,10 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     // Resolve auth (API key or session)
     const auth = await resolveAuth(request);
