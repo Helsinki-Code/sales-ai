@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
+import { resolveAuth } from "@/lib/api/resolve-auth";
 
 const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
 
@@ -11,27 +10,30 @@ export async function GET(
   try {
     const jobId = params.jobId;
 
-    // Get session
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    // Resolve auth (API key or session)
+    const auth = await resolveAuth(request);
 
-    if (!session) {
+    if (!auth) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    // Get workspace ID
-    const workspaceId = await getWorkspaceId(session.user.id);
+    // Build headers based on auth type
+    const headers: Record<string, string> = {};
+
+    if (auth.type === "apikey") {
+      headers["x-app-api-key"] = auth.token;
+    } else {
+      headers["x-supabase-access-token"] = auth.accessToken;
+      headers["x-workspace-id"] = auth.workspaceId;
+    }
 
     // Call API
     const response = await fetch(`${SALES_API_URL}/api/v1/jobs/${jobId}`, {
       method: "GET",
-      headers: {
-        "x-supabase-access-token": session.access_token,
-        "x-workspace-id": workspaceId
-      }
+      headers,
     });
 
     const data = await response.json();
@@ -57,27 +59,30 @@ export async function DELETE(
   try {
     const jobId = params.jobId;
 
-    // Get session
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    // Resolve auth (API key or session)
+    const auth = await resolveAuth(request);
 
-    if (!session) {
+    if (!auth) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    // Get workspace ID
-    const workspaceId = await getWorkspaceId(session.user.id);
+    // Build headers based on auth type
+    const headers: Record<string, string> = {};
+
+    if (auth.type === "apikey") {
+      headers["x-app-api-key"] = auth.token;
+    } else {
+      headers["x-supabase-access-token"] = auth.accessToken;
+      headers["x-workspace-id"] = auth.workspaceId;
+    }
 
     // Call API
     const response = await fetch(`${SALES_API_URL}/api/v1/jobs/${jobId}`, {
       method: "DELETE",
-      headers: {
-        "x-supabase-access-token": session.access_token,
-        "x-workspace-id": workspaceId
-      }
+      headers,
     });
 
     const data = await response.json();

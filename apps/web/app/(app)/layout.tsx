@@ -3,7 +3,9 @@ import { AuthGate } from "@/components/auth-gate";
 
 const appLinks = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/sales", label: "Sales Tools" },
+  { href: "/reference", label: "API Reference" },
+  { href: "/keys", label: "API Keys" },
+  { href: "/playground", label: "Playground" },
   { href: "/usage", label: "Usage" },
   { href: "/settings", label: "Settings" }
 ];
