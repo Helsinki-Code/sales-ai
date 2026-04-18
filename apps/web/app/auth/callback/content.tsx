@@ -44,32 +44,56 @@ export default function AuthCallbackContent() {
       }
 
       try {
-        // Exchange code for session with PKCE verifier
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-
-        if (exchangeError) {
-          console.error("Auth exchange error:", exchangeError.message);
-          router.replace("/login?error=auth_failed&details=" + encodeURIComponent(exchangeError.message));
+        // Get our PKCE code verifier stored during the authorize request
+        const codeVerifier = sessionStorage.getItem("code_verifier");
+        if (!codeVerifier) {
+          console.error("No code verifier in sessionStorage");
+          router.replace("/login?error=no_verifier");
           return;
         }
 
-        // Verify session is established
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Exchange via OAuth 2.1 token endpoint (not exchangeCodeForSession which
+        // looks for Supabase's own internal verifier, not ours)
+        const tokenResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/token`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              client_id: "a60a74a6-8f66-44de-85ab-236ea0cfec7e",
+              redirect_uri: `${window.location.origin}/auth/callback`,
+              code_verifier: codeVerifier,
+            }),
+          }
+        );
+
+        const tokenData = await tokenResponse.json();
+        console.log("Token exchange status:", tokenResponse.status, tokenData.error || "ok");
+
+        if (!tokenResponse.ok || tokenData.error) {
+          const detail = tokenData.error_description || tokenData.error || "token exchange failed";
+          console.error("Token exchange error:", detail);
+          router.replace("/login?error=token_failed&details=" + encodeURIComponent(detail));
+          return;
+        }
+
+        // Set session with returned tokens
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+        });
+
         if (sessionError) {
-          console.error("Session fetch error:", sessionError.message);
+          console.error("Session set error:", sessionError.message);
           router.replace("/login?error=session_failed&details=" + encodeURIComponent(sessionError.message));
           return;
         }
 
-        if (session) {
-          // Clear sensitive data from sessionStorage
-          sessionStorage.removeItem("code_verifier");
-          sessionStorage.removeItem("oauth_state");
-          router.replace(nextPath);
-        } else {
-          console.error("No session after exchange");
-          router.replace("/login?error=no_session");
-        }
+        sessionStorage.removeItem("code_verifier");
+        sessionStorage.removeItem("oauth_state");
+        router.replace(nextPath);
       } catch (err) {
         console.error("Unexpected error during callback:", err);
         router.replace("/login?error=callback_failed");
