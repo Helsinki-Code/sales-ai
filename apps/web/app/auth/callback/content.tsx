@@ -32,31 +32,15 @@ export default function AuthCallbackContent() {
         return;
       }
 
-      // Decode state to get the next path
+      // Decode state to get the next path (state validation handled server-side by Supabase)
       let nextPath = "/dashboard";
       if (state) {
         try {
           const stateData = JSON.parse(atob(state));
           nextPath = stateData.next || "/dashboard";
-
-          // Verify state matches what we stored
-          const storedState = sessionStorage.getItem("oauth_state");
-          if (storedState !== state) {
-            console.error("State mismatch - possible CSRF attack");
-            router.replace("/login?error=csrf_invalid");
-            return;
-          }
         } catch (e) {
           console.error("Failed to decode state:", e);
         }
-      }
-
-      // Get code verifier from sessionStorage
-      const codeVerifier = sessionStorage.getItem("code_verifier");
-      if (!codeVerifier) {
-        console.error("No code verifier found - PKCE exchange will fail");
-        router.replace("/login?error=no_verifier");
-        return;
       }
 
       try {

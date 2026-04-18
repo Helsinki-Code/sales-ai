@@ -73,7 +73,10 @@ export default function OAuthConsentContent() {
         setError(approveError.message);
         return;
       }
-      window.location.href = data.redirect_to;
+      const redirectUrl = typeof data === "string" ? data : (data?.redirect_to ?? data?.redirectTo);
+      console.log("Approve redirect data:", data, "→", redirectUrl);
+      if (!redirectUrl) { setError("No redirect URL returned from Supabase"); return; }
+      window.location.href = redirectUrl;
       return;
     }
 
@@ -82,7 +85,9 @@ export default function OAuthConsentContent() {
       setError(denyError.message);
       return;
     }
-    window.location.href = data.redirect_to;
+    const redirectUrl = typeof data === "string" ? data : (data?.redirect_to ?? data?.redirectTo);
+    if (!redirectUrl) { setError("No redirect URL returned from Supabase"); return; }
+    window.location.href = redirectUrl;
   }
 
   if (loading) {
