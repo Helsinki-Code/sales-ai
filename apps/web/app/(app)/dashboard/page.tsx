@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 
+export const dynamic = "force-dynamic";
+
 async function getApiKeys() {
   try {
     const supabase = await createClient();
