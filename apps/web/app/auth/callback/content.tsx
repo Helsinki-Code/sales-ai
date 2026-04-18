@@ -12,27 +12,83 @@ export default function AuthCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       const code = searchParams.get("code");
-      const nextPath = searchParams.get("next") ?? "/dashboard";
+      const state = searchParams.get("state");
+      const error = searchParams.get("error");
 
       console.log("Auth callback - code:", code ? "present" : "missing");
-      console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log("Auth callback - error:", error);
 
-      if (code) {
-        // Exchange code for session (magic link or OAuth callback)
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          console.error("Auth exchange error:", error.message);
-          router.replace("/login?error=auth_failed&details=" + encodeURIComponent(error.message));
-          return;
+      // Handle OAuth errors
+      if (error) {
+        const errorDesc = searchParams.get("error_description") || error;
+        console.error("OAuth error:", errorDesc);
+        router.replace("/login?error=oauth_failed&details=" + encodeURIComponent(errorDesc));
+        return;
+      }
+
+      if (!code) {
+        console.error("No authorization code in callback");
+        router.replace("/login?error=no_code");
+        return;
+      }
+
+      // Decode state to get the next path
+      let nextPath = "/dashboard";
+      if (state) {
+        try {
+          const stateData = JSON.parse(atob(state));
+          nextPath = stateData.next || "/dashboard";
+
+          // Verify state matches what we stored
+          const storedState = sessionStorage.getItem("oauth_state");
+          if (storedState !== state) {
+            console.error("State mismatch - possible CSRF attack");
+            router.replace("/login?error=csrf_invalid");
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to decode state:", e);
         }
       }
 
-      // Verify session is established
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.replace(nextPath);
-      } else {
-        router.replace("/login?error=no_session");
+      // Get code verifier from sessionStorage
+      const codeVerifier = sessionStorage.getItem("code_verifier");
+      if (!codeVerifier) {
+        console.error("No code verifier found - PKCE exchange will fail");
+        router.replace("/login?error=no_verifier");
+        return;
+      }
+
+      try {
+        // Exchange code for session with PKCE verifier
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (exchangeError) {
+          console.error("Auth exchange error:", exchangeError.message);
+          router.replace("/login?error=auth_failed&details=" + encodeURIComponent(exchangeError.message));
+          return;
+        }
+
+        // Verify session is established
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error("Session fetch error:", sessionError.message);
+          router.replace("/login?error=session_failed&details=" + encodeURIComponent(sessionError.message));
+          return;
+        }
+
+        if (session) {
+          // Clear sensitive data from sessionStorage
+          sessionStorage.removeItem("code_verifier");
+          sessionStorage.removeItem("oauth_state");
+          router.replace(nextPath);
+        } else {
+          console.error("No session after exchange");
+          router.replace("/login?error=no_session");
+        }
+      } catch (err) {
+        console.error("Unexpected error during callback:", err);
+        router.replace("/login?error=callback_failed");
       }
     };
 
