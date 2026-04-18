@@ -3,9 +3,9 @@ import { AuthGate } from "@/components/auth-gate";
 
 const appLinks = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/sales", label: "Sales Tools" },
   { href: "/usage", label: "Usage" },
-  { href: "/settings", label: "Settings" },
-  { href: "/docs", label: "Docs" }
+  { href: "/settings", label: "Settings" }
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
