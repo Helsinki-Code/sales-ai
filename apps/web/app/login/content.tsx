@@ -84,7 +84,7 @@ export default function LoginContent() {
 
   const handleOAuthSignIn = async () => {
     const clientId = "a60a74a6-8f66-44de-85ab-236ea0cfec7e";
-    const redirectUri = `${window.location.origin}/auth/callback`;
+    const redirectUri = `${window.location.origin}/callback`;
     const responseType = "code";
     const scope = "openid profile email";
 

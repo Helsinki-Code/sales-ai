@@ -45,8 +45,12 @@ export default function OAuthConsentContent() {
       const { data, error: detailsError } = await oauth.getAuthorizationDetails(authorizationId);
 
       if (!mounted) return;
-      if (detailsError || !data) {
-        setError(detailsError?.message ?? "Invalid authorization request");
+      if (detailsError) {
+        console.error("Authorization details error:", detailsError);
+        setError(detailsError.message ?? "Failed to load authorization request");
+      } else if (!data || !data.client) {
+        console.error("Invalid authorization data:", data);
+        setError("OAuth client not found. Check if client is registered in Supabase.");
       } else {
         setDetails(data as AuthDetails);
       }
