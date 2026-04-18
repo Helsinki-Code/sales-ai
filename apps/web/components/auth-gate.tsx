@@ -10,12 +10,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    supabaseBrowser.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setState(data.session ? "signed-in" : "signed-out");
     });
 
-    const { data: sub } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setState(session ? "signed-in" : "signed-out");
     });
 
