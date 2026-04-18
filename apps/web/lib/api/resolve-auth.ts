@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { getWorkspaceId } from "@/lib/workspace";
-import { createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export type AuthResult =
   | { type: "apikey"; token: string }
@@ -20,8 +19,7 @@ export async function resolveAuth(req: Request): Promise<AuthResult> {
 
   // Fall back to Supabase session from cookies
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(cookieStore);
+    const supabase = await createClient();
 
     const {
       data: { session },
