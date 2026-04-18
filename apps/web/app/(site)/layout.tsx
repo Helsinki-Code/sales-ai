@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { Route } from "next";
 
-const links = [
+const links: Array<{ href: Route; label: string }> = [
   { href: "/product", label: "Product" },
   { href: "/pricing", label: "Pricing" },
   { href: "/security", label: "Security" },
