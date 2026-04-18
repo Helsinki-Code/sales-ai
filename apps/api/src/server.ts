@@ -1,8 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import pinoHttp from "pino-http";
-import type { Request, RequestHandler, Response } from "express";
+import type { Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import { getEnv } from "./config/env.js";
 import { logger } from "./lib/logger.js";
@@ -21,18 +20,29 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
-const pinoHttpMiddleware = pinoHttp as unknown as (opts: Record<string, unknown>) => RequestHandler;
-app.use(
-  pinoHttpMiddleware({
-    logger,
-    customLogLevel: (_req: Request, res: Response, err?: Error) => {
-      if (err || res.statusCode >= 500) return "error";
-      if (res.statusCode >= 400) return "warn";
-      return "info";
-    },
-    customProps: (req: Request) => ({ requestId: req.requestId })
-  })
-);
+app.use((req, res, next) => {
+  const started = Date.now();
+  res.on("finish", () => {
+    const durationMs = Date.now() - started;
+    const payload = {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      statusCode: res.statusCode,
+      durationMs
+    };
+    if (res.statusCode >= 500) {
+      logger.error(payload, "request completed");
+      return;
+    }
+    if (res.statusCode >= 400) {
+      logger.warn(payload, "request completed");
+      return;
+    }
+    logger.info(payload, "request completed");
+  });
+  next();
+});
 
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/sales", salesRouter);
