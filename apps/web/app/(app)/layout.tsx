@@ -1,8 +1,7 @@
 import Link from "next/link";
-import type { Route } from "next";
 import { AuthGate } from "@/components/auth-gate";
 
-const appLinks: Array<{ href: Route; label: string }> = [
+const appLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/usage", label: "Usage" },
   { href: "/settings", label: "Settings" },

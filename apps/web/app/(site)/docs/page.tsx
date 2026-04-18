@@ -1,7 +1,6 @@
 import Link from "next/link";
-import type { Route } from "next";
 
-const entries: Array<{ href: Route; title: string; text: string }> = [
+const entries = [
   { href: "/docs/quickstart", title: "Quickstart", text: "Provision workspace, BYOK key, model policy, and first API call." },
   { href: "/docs/api-reference", title: "API Reference", text: "Endpoints, auth contracts, async polling lifecycle, and envelopes." },
   { href: "/docs/oauth", title: "OAuth 2.1 Setup", text: "Supabase OAuth server integration and consent route implementation." }
