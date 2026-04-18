@@ -10,6 +10,9 @@
   "dependencies": {
     "pino": "^9.14.0"
   },
+  "devDependencies": {
+    "vercel": "^51.7.0"
+  },
   "scripts": {
     "dev": "npm run dev -w @sales-ai/api",
     "dev:api": "npm run dev -w @sales-ai/api",
@@ -21,8 +24,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "dependencies": {
-    "vercel": "^51.7.0"
   }
 }

@@ -2,7 +2,7 @@ services:
   - type: web
     name: sales-ai-api
     runtime: node
-    rootDir: sales-ai
+    rootDir: .
     buildCommand: npm install && npm run build -w @sales-ai/shared && npm run build -w @sales-ai/api
     startCommand: npm run start -w @sales-ai/api
     healthCheckPath: /api/v1/health
@@ -35,7 +35,7 @@ services:
   - type: worker
     name: sales-ai-worker
     runtime: node
-    rootDir: sales-ai
+    rootDir: .
     buildCommand: npm install && npm run build -w @sales-ai/shared && npm run build -w @sales-ai/worker
     startCommand: npm run start -w @sales-ai/worker
     envVars:
