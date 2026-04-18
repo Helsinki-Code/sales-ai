@@ -21,7 +21,7 @@ export default function LoginContent() {
     sessionStorage.setItem("code_verifier", codeVerifier);
     sessionStorage.setItem("oauth_state", state);
 
-    const oauthUrl = new URL("https://ppeennufaqxqgdlryrja.supabase.co/auth/v1/oauth/authorize", "https://");
+    const oauthUrl = new URL("https://ppeennufaqxqgdlryrja.supabase.co/auth/v1/oauth/authorize");
     oauthUrl.searchParams.set("client_id", clientId);
     oauthUrl.searchParams.set("redirect_uri", redirectUri);
     oauthUrl.searchParams.set("response_type", responseType);
