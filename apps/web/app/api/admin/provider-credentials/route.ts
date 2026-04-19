@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
-
-const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
+import { getWorkspaceContext } from "@/lib/workspace";
+import { encryptText } from "@/lib/server-crypto";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get session
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -17,36 +15,93 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get workspace ID
-    const workspaceId = await getWorkspaceId(session.user.id);
-
-    // Parse body
+    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
     const body = await request.json();
+    const provider = typeof body?.provider === "string" ? body.provider : "";
+    const apiKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
 
-    // Call API
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/provider-credentials`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-supabase-access-token": session.access_token
+    if (provider !== "anthropic") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "provider must be \"anthropic\""
+          }
         },
-        body: JSON.stringify(body)
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(data, { status: response.status });
+    if (apiKey.length < 16) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "apiKey must be at least 16 characters"
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    const encryptionKey = process.env.INTERNAL_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "MISSING_ENV",
+            message: "INTERNAL_ENCRYPTION_KEY is not configured."
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    const encrypted = encryptText(apiKey, encryptionKey);
+
+    const { error } = await supabase
+      .from("provider_credentials")
+      .upsert(
+        {
+          workspace_id: workspaceId,
+          org_id: orgId,
+          provider: "anthropic",
+          api_key_encrypted: encrypted,
+          status: "active",
+          updated_by: session.user.id
+        },
+        { onConflict: "workspace_id,provider" }
+      );
+
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: error.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        workspaceId,
+        provider: "anthropic",
+        status: "active"
+      }
+    });
   } catch (error) {
     console.error("Provider credentials proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }

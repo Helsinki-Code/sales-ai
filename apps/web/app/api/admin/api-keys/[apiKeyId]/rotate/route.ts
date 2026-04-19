@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
-
-const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
+import { getWorkspaceContext } from "@/lib/workspace";
+import { randomSecret, sha256 } from "@/lib/server-crypto";
+import crypto from "node:crypto";
 
 export async function POST(
   request: NextRequest,
@@ -20,29 +20,153 @@ export async function POST(
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
 
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys/${apiKeyId}/rotate`,
-      {
-        method: "POST",
-        headers: {
-          "x-supabase-access-token": session.access_token
-        }
-      }
-    );
+    const { data: currentKey, error: currentKeyError } = await supabase
+      .from("api_keys")
+      .select("id,name,expires_at")
+      .eq("workspace_id", workspaceId)
+      .eq("id", apiKeyId)
+      .maybeSingle();
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (currentKeyError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: currentKeyError.message
+          }
+        },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data);
+    if (!currentKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "API key not found"
+          }
+        },
+        { status: 404 }
+      );
+    }
+
+    const { data: scopeRows, error: scopeError } = await supabase
+      .from("api_key_scopes")
+      .select("scope")
+      .eq("api_key_id", apiKeyId);
+
+    if (scopeError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: scopeError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    const scopes = (scopeRows ?? [])
+      .map((row: { scope: unknown }) => row.scope)
+      .filter((scope: unknown): scope is string => typeof scope === "string" && scope.length > 0);
+
+    if (scopes.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_STATE",
+            message: "API key has no scopes to rotate"
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    const { error: revokeError } = await supabase
+      .from("api_keys")
+      .update({ status: "revoked", revoked_at: new Date().toISOString() })
+      .eq("workspace_id", workspaceId)
+      .eq("id", apiKeyId);
+
+    if (revokeError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: revokeError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    const newApiKeyId = crypto.randomUUID();
+    const token = `${process.env.APP_API_KEY_PREFIX ?? "sak_"}${newApiKeyId}.${randomSecret(24)}`;
+    const tokenHash = sha256(token);
+
+    const { error: insertKeyError } = await supabase.from("api_keys").insert({
+      id: newApiKeyId,
+      org_id: orgId,
+      workspace_id: workspaceId,
+      name: currentKey.name,
+      token_hash: tokenHash,
+      status: "active",
+      created_by: session.user.id,
+      expires_at: currentKey.expires_at
+    });
+
+    if (insertKeyError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: insertKeyError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    const { error: insertScopesError } = await supabase
+      .from("api_key_scopes")
+      .insert(scopes.map((scope: string) => ({ api_key_id: newApiKeyId, scope })));
+
+    if (insertScopesError) {
+      await supabase.from("api_keys").delete().eq("id", newApiKeyId);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: insertScopesError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        apiKeyId: newApiKeyId,
+        token
+      }
+    });
   } catch (error) {
     console.error("API key rotate proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }

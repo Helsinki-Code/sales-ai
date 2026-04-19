@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
 
-const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -18,36 +16,43 @@ export async function GET(request: NextRequest) {
 
     const workspaceId = await getWorkspaceId(session.user.id);
 
-    // Get query params
     const from = request.nextUrl.searchParams.get("from");
     const to = request.nextUrl.searchParams.get("to");
 
-    // Build query string
-    const queryParams = new URLSearchParams();
-    if (from) queryParams.append("from", from);
-    if (to) queryParams.append("to", to);
+    let query = supabase
+      .from("usage_daily_rollups")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd")
+      .eq("workspace_id", workspaceId)
+      .order("usage_date", { ascending: false })
+      .limit(180);
 
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/usage?${queryParams.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "x-supabase-access-token": session.access_token
-        }
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (from) {
+      query = query.gte("usage_date", from);
+    }
+    if (to) {
+      query = query.lte("usage_date", to);
     }
 
-    return NextResponse.json(data);
+    const { data, error } = await query;
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: error.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: data ?? [] });
   } catch (error) {
     console.error("Usage GET proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }

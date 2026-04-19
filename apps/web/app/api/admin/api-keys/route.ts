@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
-
-const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
+import { getWorkspaceContext } from "@/lib/workspace";
+import { randomSecret, sha256 } from "@/lib/server-crypto";
+import crypto from "node:crypto";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,29 +16,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const { workspaceId } = await getWorkspaceContext(session.user.id);
 
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys`,
-      {
-        method: "GET",
-        headers: {
-          "x-supabase-access-token": session.access_token
-        }
-      }
-    );
+    const { data, error } = await supabase
+      .from("api_keys")
+      .select("id,name,status,last_used_at,expires_at,created_at,revoked_at")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: error.message
+          }
+        },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ success: true, data: data ?? [] });
   } catch (error) {
     console.error("API keys GET proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }
@@ -56,32 +60,95 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
     const body = await request.json();
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const scopes = Array.isArray(body?.scopes)
+      ? body.scopes.filter((scope: unknown): scope is string => typeof scope === "string" && scope.trim().length > 0)
+      : [];
+    const expiresAt = typeof body?.expiresAt === "string" ? body.expiresAt : null;
 
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-supabase-access-token": session.access_token
+    if (name.length < 2) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "name must be at least 2 characters"
+          }
         },
-        body: JSON.stringify(body)
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(data, { status: response.status });
+    if (scopes.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVALID_REQUEST",
+            message: "At least one scope is required"
+          }
+        },
+        { status: 400 }
+      );
+    }
+
+    const apiKeyId = crypto.randomUUID();
+    const token = `${process.env.APP_API_KEY_PREFIX ?? "sak_"}${apiKeyId}.${randomSecret(24)}`;
+    const tokenHash = sha256(token);
+
+    const { error: insertKeyError } = await supabase.from("api_keys").insert({
+      id: apiKeyId,
+      org_id: orgId,
+      workspace_id: workspaceId,
+      name,
+      token_hash: tokenHash,
+      status: "active",
+      created_by: session.user.id,
+      expires_at: expiresAt
+    });
+
+    if (insertKeyError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: insertKeyError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    const { error: insertScopesError } = await supabase
+      .from("api_key_scopes")
+      .insert(scopes.map((scope: string) => ({ api_key_id: apiKeyId, scope })));
+
+    if (insertScopesError) {
+      await supabase.from("api_keys").delete().eq("id", apiKeyId);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: insertScopesError.message
+          }
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, data: { apiKeyId, token } },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("API keys POST proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }

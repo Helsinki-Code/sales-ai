@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
-
-const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export async function DELETE(
   request: NextRequest,
@@ -20,29 +18,39 @@ export async function DELETE(
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const { workspaceId } = await getWorkspaceContext(session.user.id);
 
-    const response = await fetch(
-      `${SALES_API_URL}/api/v1/admin/workspaces/${workspaceId}/api-keys/${apiKeyId}`,
-      {
-        method: "DELETE",
-        headers: {
-          "x-supabase-access-token": session.access_token
-        }
-      }
-    );
+    const { error } = await supabase
+      .from("api_keys")
+      .update({ status: "revoked", revoked_at: new Date().toISOString() })
+      .eq("workspace_id", workspaceId)
+      .eq("id", apiKeyId);
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "DB_ERROR",
+            message: error.message
+          }
+        },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      success: true,
+      data: {
+        apiKeyId,
+        status: "revoked"
+      }
+    });
   } catch (error) {
     console.error("API key DELETE proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }
