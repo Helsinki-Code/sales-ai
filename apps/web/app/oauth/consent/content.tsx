@@ -10,6 +10,12 @@ type AuthDetails = {
   scope?: string;
 };
 
+function getRedirectUrl(data: any): string | null {
+  if (!data) return null;
+  if (typeof data === "string") return data;
+  return data.redirect_url ?? data.redirect_to ?? data.redirectTo ?? null;
+}
+
 export default function OAuthConsentContent() {
   const supabase = createClient() as any;
   const searchParams = useSearchParams();
@@ -48,6 +54,10 @@ export default function OAuthConsentContent() {
       if (detailsError) {
         console.error("Authorization details error:", detailsError);
         setError(detailsError.message ?? "Failed to load authorization request");
+      } else if (getRedirectUrl(data)) {
+        // Auto-approved requests can skip consent and return redirect URL directly.
+        window.location.href = getRedirectUrl(data)!;
+        return;
       } else if (!data || !data.client) {
         console.error("Invalid authorization data:", data);
         setError("OAuth client not found. Check if client is registered in Supabase.");
@@ -61,7 +71,7 @@ export default function OAuthConsentContent() {
     return () => {
       mounted = false;
     };
-  }, [authorizationId, loginRedirect, router]);
+  }, [authorizationId, loginRedirect, router, supabase.auth]);
 
   async function handleDecision(decision: "approve" | "deny") {
     if (!authorizationId) return;
@@ -73,9 +83,12 @@ export default function OAuthConsentContent() {
         setError(approveError.message);
         return;
       }
-      const redirectUrl = typeof data === "string" ? data : (data?.redirect_to ?? data?.redirectTo);
-      console.log("Approve redirect data:", data, "→", redirectUrl);
-      if (!redirectUrl) { setError("No redirect URL returned from Supabase"); return; }
+      const redirectUrl = getRedirectUrl(data);
+      console.log("Approve redirect data:", data, "->", redirectUrl);
+      if (!redirectUrl) {
+        setError("No redirect URL returned from Supabase");
+        return;
+      }
       window.location.href = redirectUrl;
       return;
     }
@@ -85,21 +98,41 @@ export default function OAuthConsentContent() {
       setError(denyError.message);
       return;
     }
-    const redirectUrl = typeof data === "string" ? data : (data?.redirect_to ?? data?.redirectTo);
-    if (!redirectUrl) { setError("No redirect URL returned from Supabase"); return; }
+    const redirectUrl = getRedirectUrl(data);
+    if (!redirectUrl) {
+      setError("No redirect URL returned from Supabase");
+      return;
+    }
     window.location.href = redirectUrl;
   }
 
   if (loading) {
-    return <main className="container main-section"><p>Loading authorization request...</p></main>;
+    return (
+      <main className="container main-section">
+        <p>Loading authorization request...</p>
+      </main>
+    );
   }
 
   if (error) {
-    return <main className="container main-section"><div className="card"><h2>OAuth Error</h2><p>{error}</p></div></main>;
+    return (
+      <main className="container main-section">
+        <div className="card">
+          <h2>OAuth Error</h2>
+          <p>{error}</p>
+        </div>
+      </main>
+    );
   }
 
   if (!details) {
-    return <main className="container main-section"><div className="card"><p>No authorization details found.</p></div></main>;
+    return (
+      <main className="container main-section">
+        <div className="card">
+          <p>No authorization details found.</p>
+        </div>
+      </main>
+    );
   }
 
   const scopes = details.scope?.trim() ? details.scope.split(" ") : [];
@@ -109,11 +142,15 @@ export default function OAuthConsentContent() {
       <div className="card">
         <h1 className="page-title">Authorize {details.client.name}</h1>
         <p>This application is requesting access to your Sales AI account.</p>
-        <p><strong>Redirect URI:</strong> {details.redirect_uri}</p>
+        <p>
+          <strong>Redirect URI:</strong> {details.redirect_uri}
+        </p>
 
         {scopes.length > 0 ? (
           <>
-            <p><strong>Requested permissions:</strong></p>
+            <p>
+              <strong>Requested permissions:</strong>
+            </p>
             <ul>
               {scopes.map((scope) => (
                 <li key={scope}>{scope}</li>
@@ -123,8 +160,12 @@ export default function OAuthConsentContent() {
         ) : null}
 
         <div className="nav-links" style={{ marginTop: "1rem" }}>
-          <button className="cta" type="button" onClick={() => void handleDecision("approve")}>Approve</button>
-          <button className="cta" type="button" onClick={() => void handleDecision("deny")}>Deny</button>
+          <button className="cta" type="button" onClick={() => void handleDecision("approve")}>
+            Approve
+          </button>
+          <button className="cta" type="button" onClick={() => void handleDecision("deny")}>
+            Deny
+          </button>
         </div>
       </div>
     </main>
