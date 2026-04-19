@@ -14,6 +14,10 @@ export default function AuthCallbackContent() {
       const code = searchParams.get("code");
       const state = searchParams.get("state");
       const error = searchParams.get("error");
+      const anonOrPublishableKey =
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+        "";
 
       console.log("Auth callback - code:", code ? "present" : "missing");
       console.log("Auth callback - error:", error);
@@ -32,23 +36,35 @@ export default function AuthCallbackContent() {
         return;
       }
 
-      // Decode state to get the next path (state validation handled server-side by Supabase)
+      // Resolve state-scoped flow metadata (next path + verifier).
       let nextPath = "/dashboard";
+      let codeVerifier: string | null = null;
       if (state) {
         try {
-          const stateData = JSON.parse(atob(state));
-          nextPath = stateData.next || "/dashboard";
+          const flowRaw =
+            localStorage.getItem(`oauth_flow_${state}`) ??
+            sessionStorage.getItem(`oauth_flow_${state}`);
+          if (flowRaw) {
+            const flowData = JSON.parse(flowRaw);
+            codeVerifier = flowData?.codeVerifier ?? null;
+            nextPath = flowData?.next ?? "/dashboard";
+          } else {
+            // Backward compatibility for older base64 state payload.
+            const stateData = JSON.parse(atob(state));
+            nextPath = stateData?.next || "/dashboard";
+          }
         } catch (e) {
-          console.error("Failed to decode state:", e);
+          console.error("Failed to resolve auth state:", e);
         }
       }
 
       try {
-        // Get our PKCE code verifier stored during the authorize request.
-        // Try localStorage first, then sessionStorage for backward compatibility.
-        const codeVerifier =
-          localStorage.getItem("code_verifier") ??
-          sessionStorage.getItem("code_verifier");
+        // Fallback to legacy non-state-scoped keys.
+        if (!codeVerifier) {
+          codeVerifier =
+            localStorage.getItem("code_verifier") ??
+            sessionStorage.getItem("code_verifier");
+        }
         if (!codeVerifier) {
           console.error("No code verifier in browser storage");
           router.replace("/login?error=no_verifier");
@@ -61,7 +77,11 @@ export default function AuthCallbackContent() {
           `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/token`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Accept: "application/json",
+              ...(anonOrPublishableKey ? { apikey: anonOrPublishableKey } : {}),
+            },
             body: new URLSearchParams({
               grant_type: "authorization_code",
               code,
@@ -72,11 +92,23 @@ export default function AuthCallbackContent() {
           }
         );
 
-        const tokenData = await tokenResponse.json();
-        console.log("Token exchange status:", tokenResponse.status, tokenData.error || "ok");
+        const tokenRaw = await tokenResponse.text();
+        let tokenData: any = {};
+        try {
+          tokenData = tokenRaw ? JSON.parse(tokenRaw) : {};
+        } catch {
+          tokenData = { raw: tokenRaw };
+        }
+        console.log("Token exchange status:", tokenResponse.status, tokenData);
 
         if (!tokenResponse.ok || tokenData.error) {
-          const detail = tokenData.error_description || tokenData.error || "token exchange failed";
+          const detail =
+            tokenData.error_description ||
+            tokenData.error ||
+            tokenData.message ||
+            tokenData.msg ||
+            tokenData.raw ||
+            "token exchange failed";
           console.error("Token exchange error:", detail);
           router.replace("/login?error=token_failed&details=" + encodeURIComponent(detail));
           return;
@@ -94,6 +126,12 @@ export default function AuthCallbackContent() {
           return;
         }
 
+        if (state) {
+          localStorage.removeItem(`oauth_flow_${state}`);
+          sessionStorage.removeItem(`oauth_flow_${state}`);
+        }
+        localStorage.removeItem("oauth_flow_latest");
+        sessionStorage.removeItem("oauth_flow_latest");
         localStorage.removeItem("code_verifier");
         localStorage.removeItem("oauth_state");
         sessionStorage.removeItem("code_verifier");

@@ -91,10 +91,21 @@ export default function LoginContent() {
     // Generate PKCE parameters
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = btoa(JSON.stringify({ next: nextPath }));
+    // Use a unique state per auth attempt so verifier lookup is deterministic.
+    const state = generateState();
+    const flowPayload = JSON.stringify({
+      codeVerifier,
+      next: nextPath,
+      createdAt: Date.now(),
+    });
 
-    // Store verifier and state in localStorage (plus sessionStorage fallback)
-    // so callback can still complete even if browser opens a new tab context.
+    // Store a state-scoped flow record in both stores for cross-tab/browser reliability.
+    localStorage.setItem(`oauth_flow_${state}`, flowPayload);
+    sessionStorage.setItem(`oauth_flow_${state}`, flowPayload);
+    localStorage.setItem("oauth_flow_latest", state);
+    sessionStorage.setItem("oauth_flow_latest", state);
+
+    // Backward-compatibility fallback keys.
     localStorage.setItem("code_verifier", codeVerifier);
     localStorage.setItem("oauth_state", state);
     sessionStorage.setItem("code_verifier", codeVerifier);
@@ -116,6 +127,15 @@ export default function LoginContent() {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     return base64URLEncode(array);
+  }
+
+  function generateState(): string {
+    if (typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   async function generateCodeChallenge(verifier: string): Promise<string> {
