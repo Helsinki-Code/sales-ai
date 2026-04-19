@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ApiKey {
   id: string;
@@ -11,12 +11,45 @@ interface ApiKey {
   revoked_at: string | null;
 }
 
+type ApiErrorEnvelope = {
+  error?: {
+    message?: string;
+  };
+};
+
+type ApiKeyListEnvelope = {
+  data?: ApiKey[];
+};
+
+type ApiKeyTokenEnvelope = {
+  data?: {
+    token?: string;
+  };
+};
+
+function extractErrorMessage(data: unknown, fallback: string) {
+  const envelope = data as ApiErrorEnvelope;
+  return envelope?.error?.message || fallback;
+}
+
+function extractKeys(data: unknown) {
+  const envelope = data as ApiKeyListEnvelope;
+  return Array.isArray(envelope?.data) ? envelope.data : [];
+}
+
+function extractToken(data: unknown) {
+  const envelope = data as ApiKeyTokenEnvelope;
+  return typeof envelope?.data?.token === "string" ? envelope.data.token : null;
+}
+
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,10 +59,16 @@ export default function ApiKeysPage() {
   const fetchKeys = async () => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const res = await fetch("/api/admin/api-keys");
-      if (!res.ok) throw new Error("Failed to fetch API keys");
       const data = await res.json();
-      setKeys(Array.isArray(data) ? data : []);
+
+      if (!res.ok) {
+        throw new Error(extractErrorMessage(data, "Failed to fetch API keys"));
+      }
+
+      setKeys(extractKeys(data));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error fetching keys");
     } finally {
@@ -39,38 +78,70 @@ export default function ApiKeysPage() {
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!newKeyName.trim()) {
       setError("Key name is required");
       return;
     }
 
     try {
+      setActionLoading("create");
+      setError(null);
+      setNewToken(null);
+      setCopied(false);
+
       const res = await fetch("/api/admin/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName, scopes: ["sales:run", "jobs:read", "jobs:write"] }),
       });
 
-      if (!res.ok) throw new Error("Failed to create key");
       const data = await res.json();
-      setNewToken(data.token);
+
+      if (!res.ok) {
+        throw new Error(extractErrorMessage(data, "Failed to create key"));
+      }
+
+      const token = extractToken(data);
+      if (!token) {
+        throw new Error("Key created but token was missing in response");
+      }
+
+      setNewToken(token);
       setNewKeyName("");
       setShowCreateForm(false);
-      fetchKeys();
+      await fetchKeys();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error creating key");
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleRotateKey = async (keyId: string) => {
     try {
+      setActionLoading(`rotate:${keyId}`);
+      setError(null);
+      setCopied(false);
+
       const res = await fetch(`/api/admin/api-keys/${keyId}/rotate`, { method: "POST" });
-      if (!res.ok) throw new Error("Failed to rotate key");
       const data = await res.json();
-      setNewToken(data.token);
-      fetchKeys();
+
+      if (!res.ok) {
+        throw new Error(extractErrorMessage(data, "Failed to rotate key"));
+      }
+
+      const token = extractToken(data);
+      if (!token) {
+        throw new Error("Key rotated but token was missing in response");
+      }
+
+      setNewToken(token);
+      await fetchKeys();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error rotating key");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -78,12 +149,30 @@ export default function ApiKeysPage() {
     if (!confirm("Are you sure? This action cannot be undone.")) return;
 
     try {
+      setActionLoading(`revoke:${keyId}`);
+      setError(null);
+
       const res = await fetch(`/api/admin/api-keys/${keyId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to revoke key");
-      fetchKeys();
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(extractErrorMessage(data, "Failed to revoke key"));
+      }
+
+      await fetchKeys();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error revoking key");
+    } finally {
+      setActionLoading(null);
     }
+  };
+
+  const handleCopy = async () => {
+    if (!newToken) return;
+
+    await navigator.clipboard.writeText(newToken);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
   };
 
   return (
@@ -117,7 +206,7 @@ export default function ApiKeysPage() {
             marginBottom: "1.5rem",
           }}
         >
-          <div style={{ fontWeight: "600", marginBottom: "0.5rem" }}>Your new API key (save this now — you won't see it again)</div>
+          <div style={{ fontWeight: "600", marginBottom: "0.5rem" }}>Your new API key (save this now - you will not see it again)</div>
           <code
             style={{
               display: "block",
@@ -133,10 +222,7 @@ export default function ApiKeysPage() {
             {newToken}
           </code>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(newToken);
-              alert("Copied to clipboard!");
-            }}
+            onClick={handleCopy}
             style={{
               padding: "0.5rem 1rem",
               backgroundColor: "var(--accent)",
@@ -148,10 +234,13 @@ export default function ApiKeysPage() {
               fontWeight: "500",
             }}
           >
-            Copy Token
+            {copied ? "Copied" : "Copy Token"}
           </button>
           <button
-            onClick={() => setNewToken(null)}
+            onClick={() => {
+              setNewToken(null);
+              setCopied(false);
+            }}
             style={{
               marginLeft: "0.5rem",
               padding: "0.5rem 1rem",
@@ -170,11 +259,7 @@ export default function ApiKeysPage() {
 
       <div className="card" style={{ marginBottom: "2rem" }}>
         {!showCreateForm ? (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="cta"
-            style={{ marginBottom: "1rem" }}
-          >
+          <button onClick={() => setShowCreateForm(true)} className="cta" style={{ marginBottom: "1rem" }}>
             Create New Key
           </button>
         ) : (
@@ -199,12 +284,13 @@ export default function ApiKeysPage() {
               />
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button type="submit" className="cta">
-                Create
+              <button type="submit" className="cta" disabled={actionLoading === "create"}>
+                {actionLoading === "create" ? "Creating..." : "Create"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
+                disabled={actionLoading === "create"}
                 style={{
                   padding: "0.75rem 1.5rem",
                   backgroundColor: "var(--border)",
@@ -294,6 +380,7 @@ export default function ApiKeysPage() {
                           <>
                             <button
                               onClick={() => handleRotateKey(key.id)}
+                              disabled={actionLoading === `rotate:${key.id}` || actionLoading === `revoke:${key.id}`}
                               style={{
                                 padding: "0.4rem 0.75rem",
                                 fontSize: "0.85rem",
@@ -302,12 +389,14 @@ export default function ApiKeysPage() {
                                 border: "1px solid var(--accent)",
                                 borderRadius: "4px",
                                 cursor: "pointer",
+                                opacity: actionLoading === `rotate:${key.id}` ? 0.6 : 1,
                               }}
                             >
-                              Rotate
+                              {actionLoading === `rotate:${key.id}` ? "Rotating..." : "Rotate"}
                             </button>
                             <button
                               onClick={() => handleRevokeKey(key.id)}
+                              disabled={actionLoading === `revoke:${key.id}` || actionLoading === `rotate:${key.id}`}
                               style={{
                                 padding: "0.4rem 0.75rem",
                                 fontSize: "0.85rem",
@@ -316,9 +405,10 @@ export default function ApiKeysPage() {
                                 border: "1px solid var(--slate)",
                                 borderRadius: "4px",
                                 cursor: "pointer",
+                                opacity: actionLoading === `revoke:${key.id}` ? 0.6 : 1,
                               }}
                             >
-                              Revoke
+                              {actionLoading === `revoke:${key.id}` ? "Revoking..." : "Revoke"}
                             </button>
                           </>
                         )}
