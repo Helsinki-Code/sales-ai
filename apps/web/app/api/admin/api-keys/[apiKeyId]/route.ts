@@ -9,16 +9,16 @@ export async function DELETE(
   try {
     const { apiKeyId } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    const { workspaceId } = await getWorkspaceContext(session.user.id);
+    const { workspaceId } = await getWorkspaceContext(user.id);
 
     const { error } = await supabase
       .from("api_keys")

@@ -59,16 +59,16 @@ function normalizePolicies(input: unknown): ModelPolicyInput[] {
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const workspaceId = await getWorkspaceId(user.id);
 
     const { data, error } = await supabase
       .from("workspace_model_policies")
@@ -112,16 +112,16 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const workspaceId = await getWorkspaceId(user.id);
     const body = await request.json();
     const policies = normalizePolicies(body?.policies);
 
@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest) {
         endpoint: policy.endpoint,
         default_model: policy.defaultModel,
         allowed_models: policy.allowedModels,
-        updated_by: session.user.id
+        updated_by: user.id
       }));
 
       const { error: upsertError } = await supabase

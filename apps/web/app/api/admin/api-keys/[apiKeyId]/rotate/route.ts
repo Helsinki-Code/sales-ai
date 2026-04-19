@@ -11,16 +11,16 @@ export async function POST(
   try {
     const { apiKeyId } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(user.id);
 
     const { data: currentKey, error: currentKeyError } = await supabase
       .from("api_keys")
@@ -120,7 +120,7 @@ export async function POST(
       name: currentKey.name,
       token_hash: tokenHash,
       status: "active",
-      created_by: session.user.id,
+      created_by: user.id,
       expires_at: currentKey.expires_at
     });
 

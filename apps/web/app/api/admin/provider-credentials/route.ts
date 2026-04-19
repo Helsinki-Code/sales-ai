@@ -6,16 +6,16 @@ import { encryptText } from "@/lib/server-crypto";
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
     }
 
-    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(user.id);
     const body = await request.json();
     const provider = typeof body?.provider === "string" ? body.provider : "";
     const apiKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           provider: "anthropic",
           api_key_encrypted: encrypted,
           status: "active",
-          updated_by: session.user.id
+          updated_by: user.id
         },
         { onConflict: "workspace_id,provider" }
       );
