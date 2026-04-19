@@ -7,6 +7,35 @@ const SYNC_ENDPOINTS = ["quick", "research", "qualify", "contacts", "outreach", 
 const ASYNC_ENDPOINTS = ["prospect", "leads", "report", "report-pdf"];
 const ALL_ENDPOINTS = [...SYNC_ENDPOINTS, ...ASYNC_ENDPOINTS];
 
+type UpstreamPayload = {
+  success?: boolean;
+  error?: {
+    code?: string;
+    message?: string;
+    details?: unknown;
+  };
+};
+
+async function readUpstreamPayload(response: Response): Promise<{ payload: UpstreamPayload; raw: string }> {
+  const raw = await response.text();
+  if (!raw) return { payload: {}, raw: "" };
+
+  try {
+    return { payload: JSON.parse(raw) as UpstreamPayload, raw };
+  } catch {
+    return {
+      payload: {
+        success: false,
+        error: {
+          code: "UPSTREAM_NON_JSON",
+          message: raw.slice(0, 800)
+        }
+      },
+      raw
+    };
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ endpoint: string }> }
@@ -47,6 +76,14 @@ export async function POST(
       headers["x-workspace-id"] = auth.workspaceId;
     }
 
+    // Optional: allows server-side invoker auth passthrough if your upstream requires it.
+    const upstreamBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
+    if (upstreamBearer) {
+      headers["Authorization"] = upstreamBearer.toLowerCase().startsWith("bearer ")
+        ? upstreamBearer
+        : `Bearer ${upstreamBearer}`;
+    }
+
     // For async endpoints, add Idempotency-Key if not present
     if (ASYNC_ENDPOINTS.includes(endpoint)) {
       headers["Idempotency-Key"] = request.headers.get("Idempotency-Key") || crypto.randomUUID();
@@ -59,17 +96,33 @@ export async function POST(
       body: JSON.stringify(body)
     });
 
-    const data = await response.json();
+    const { payload, raw } = await readUpstreamPayload(response);
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      if ((response.status === 401 || response.status === 403) && !payload.error?.code) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "UPSTREAM_AUTH_BLOCKED",
+              message:
+                "Upstream API rejected this request before app auth. If Cloud Run is private, allow unauthenticated invocations or configure SALES_API_BEARER_TOKEN on web.",
+              details: raw.slice(0, 500)
+            }
+          },
+          { status: 502 }
+        );
+      }
+
+      return NextResponse.json(payload, { status: response.status });
     }
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     console.error("Sales proxy error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message: "Internal server error" } },
+      { success: false, error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }
