@@ -83,41 +83,8 @@ export default function LoginContent() {
   };
 
   const handleOAuthSignIn = async () => {
-    const clientId =
-      process.env.NEXT_PUBLIC_SUPABASE_OAUTH_CLIENT_ID ??
-      "a60a74a6-8f66-44de-85ab-236ea0cfec7e";
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const responseType = "code";
-    const scope = "openid profile email";
-
-    const statePayload = {
-      next: nextPath,
-      nonce: generateNonce(),
-      createdAt: Date.now(),
-    };
-    const state = btoa(JSON.stringify(statePayload))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
-
-    const oauthUrl = new URL("https://ppeennufaqxqgdlryrja.supabase.co/auth/v1/oauth/authorize");
-    oauthUrl.searchParams.set("client_id", clientId);
-    oauthUrl.searchParams.set("redirect_uri", redirectUri);
-    oauthUrl.searchParams.set("response_type", responseType);
-    oauthUrl.searchParams.set("scope", scope);
-    oauthUrl.searchParams.set("state", state);
-
-    window.location.href = oauthUrl.toString();
+    window.location.href = `/auth/start?next=${encodeURIComponent(nextPath)}`;
   };
-
-  function generateNonce(): string {
-    if (typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  }
 
   return (
     <main className="container main-section">

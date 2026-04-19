@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 function getSupabaseKey(): string {
   return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -9,22 +9,25 @@ function getOAuthClientId(): string {
   return process.env.SUPABASE_OAUTH_CLIENT_ID ?? "a60a74a6-8f66-44de-85ab-236ea0cfec7e";
 }
 
-function getSafeNextPathFromState(state: string | null): string {
-  if (!state) return "/dashboard";
-  try {
-    const parsed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
-    const nextPath = typeof parsed?.next === "string" ? parsed.next : "/dashboard";
-    return nextPath.startsWith("/") ? nextPath : "/dashboard";
-  } catch {
+function getSafeNextPath(nextPath: string | null): string {
+  if (!nextPath || !nextPath.startsWith("/")) {
     return "/dashboard";
   }
+  return nextPath;
+}
+
+function clearOAuthCookies(response: NextResponse) {
+  response.cookies.set("oauth_state", "", { maxAge: 0, path: "/" });
+  response.cookies.set("oauth_code_verifier", "", { maxAge: 0, path: "/" });
+  response.cookies.set("oauth_next", "", { maxAge: 0, path: "/" });
 }
 
 async function exchangeOAuthCode(
   code: string,
   redirectUri: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  codeVerifier: string
 ): Promise<{ access_token: string; refresh_token: string }> {
   const tokenUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/oauth/token`;
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -40,6 +43,8 @@ async function exchangeOAuthCode(
       grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
+      client_id: clientId,
+      code_verifier: codeVerifier,
     }),
     cache: "no-store",
   });
@@ -69,21 +74,42 @@ async function exchangeOAuthCode(
   };
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const error = requestUrl.searchParams.get("error");
   const errorDescription = requestUrl.searchParams.get("error_description");
   const state = requestUrl.searchParams.get("state");
-  const nextPath = getSafeNextPathFromState(state);
+
+  const expectedState = request.cookies.get("oauth_state")?.value ?? null;
+  const codeVerifier = request.cookies.get("oauth_code_verifier")?.value ?? null;
+  const nextPath = getSafeNextPath(request.cookies.get("oauth_next")?.value ?? "/dashboard");
+
+  const makeLoginRedirect = (err: string, details?: string) => {
+    const loginUrl = new URL("/login", requestUrl.origin);
+    loginUrl.searchParams.set("error", err);
+    if (details) {
+      loginUrl.searchParams.set("details", details);
+    }
+    const response = NextResponse.redirect(loginUrl);
+    clearOAuthCookies(response);
+    return response;
+  };
 
   if (error) {
-    const detail = encodeURIComponent(errorDescription ?? error);
-    return NextResponse.redirect(new URL(`/login?error=oauth_failed&details=${detail}`, requestUrl.origin));
+    return makeLoginRedirect("oauth_failed", errorDescription ?? error);
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=no_code", requestUrl.origin));
+    return makeLoginRedirect("no_code");
+  }
+
+  if (!state || !expectedState || state !== expectedState) {
+    return makeLoginRedirect("state_mismatch");
+  }
+
+  if (!codeVerifier) {
+    return makeLoginRedirect("missing_code_verifier");
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -91,19 +117,18 @@ export async function GET(request: Request) {
   const clientSecret = process.env.SUPABASE_OAUTH_CLIENT_SECRET;
 
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.redirect(new URL("/login?error=supabase_env_missing", requestUrl.origin));
+    return makeLoginRedirect("supabase_env_missing");
   }
   if (!clientSecret) {
-    return NextResponse.redirect(new URL("/login?error=oauth_secret_missing", requestUrl.origin));
+    return makeLoginRedirect("oauth_secret_missing");
   }
 
-  const redirectUrl = new URL(nextPath, requestUrl.origin);
-  const response = NextResponse.redirect(redirectUrl);
+  const response = NextResponse.redirect(new URL(nextPath, requestUrl.origin));
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
-        return [];
+        return request.cookies.getAll();
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
         cookiesToSet.forEach(({ name, value, options }) => {
@@ -118,18 +143,18 @@ export async function GET(request: Request) {
       code,
       `${requestUrl.origin}/auth/callback`,
       getOAuthClientId(),
-      clientSecret
+      clientSecret,
+      codeVerifier
     );
 
     const { error: setSessionError } = await supabase.auth.setSession(tokens);
     if (setSessionError) {
-      const detail = encodeURIComponent(setSessionError.message ?? "session_failed");
-      return NextResponse.redirect(new URL(`/login?error=session_failed&details=${detail}`, requestUrl.origin));
+      return makeLoginRedirect("session_failed", setSessionError.message ?? "session_failed");
     }
 
+    clearOAuthCookies(response);
     return response;
   } catch (e: any) {
-    const detail = encodeURIComponent(e?.message ?? "token exchange failed");
-    return NextResponse.redirect(new URL(`/login?error=token_failed&details=${detail}`, requestUrl.origin));
+    return makeLoginRedirect("token_failed", e?.message ?? "token exchange failed");
   }
 }
