@@ -83,33 +83,22 @@ export default function LoginContent() {
   };
 
   const handleOAuthSignIn = async () => {
-    const clientId = "a60a74a6-8f66-44de-85ab-236ea0cfec7e";
+    const clientId =
+      process.env.NEXT_PUBLIC_SUPABASE_OAUTH_CLIENT_ID ??
+      "a60a74a6-8f66-44de-85ab-236ea0cfec7e";
     const redirectUri = `${window.location.origin}/auth/callback`;
     const responseType = "code";
     const scope = "openid profile email";
 
-    // Generate PKCE parameters
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    // Use a unique state per auth attempt so verifier lookup is deterministic.
-    const state = generateState();
-    const flowPayload = JSON.stringify({
-      codeVerifier,
+    const statePayload = {
       next: nextPath,
+      nonce: generateNonce(),
       createdAt: Date.now(),
-    });
-
-    // Store a state-scoped flow record in both stores for cross-tab/browser reliability.
-    localStorage.setItem(`oauth_flow_${state}`, flowPayload);
-    sessionStorage.setItem(`oauth_flow_${state}`, flowPayload);
-    localStorage.setItem("oauth_flow_latest", state);
-    sessionStorage.setItem("oauth_flow_latest", state);
-
-    // Backward-compatibility fallback keys.
-    localStorage.setItem("code_verifier", codeVerifier);
-    localStorage.setItem("oauth_state", state);
-    sessionStorage.setItem("code_verifier", codeVerifier);
-    sessionStorage.setItem("oauth_state", state);
+    };
+    const state = btoa(JSON.stringify(statePayload))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
 
     const oauthUrl = new URL("https://ppeennufaqxqgdlryrja.supabase.co/auth/v1/oauth/authorize");
     oauthUrl.searchParams.set("client_id", clientId);
@@ -117,39 +106,17 @@ export default function LoginContent() {
     oauthUrl.searchParams.set("response_type", responseType);
     oauthUrl.searchParams.set("scope", scope);
     oauthUrl.searchParams.set("state", state);
-    oauthUrl.searchParams.set("code_challenge", codeChallenge);
-    oauthUrl.searchParams.set("code_challenge_method", "S256");
 
     window.location.href = oauthUrl.toString();
   };
 
-  function generateCodeVerifier(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return base64URLEncode(array);
-  }
-
-  function generateState(): string {
+  function generateNonce(): string {
     if (typeof crypto.randomUUID === "function") {
       return crypto.randomUUID();
     }
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  }
-
-  async function generateCodeChallenge(verifier: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const hash = await crypto.subtle.digest("SHA-256", data);
-    return base64URLEncode(new Uint8Array(hash));
-  }
-
-  function base64URLEncode(buffer: Uint8Array): string {
-    return btoa(String.fromCharCode(...buffer))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
   }
 
   return (

@@ -12,10 +12,12 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath = PROTECTED_PATHS.some(path => pathname.startsWith(path));
 
   if (isProtectedPath) {
-    // Check if user has a session by looking for supabase session token
-    const supabaseSession = request.cookies.get("sb-session") || request.cookies.get("sb-auth-token");
+    // Supabase SSR uses project-scoped auth cookie names (e.g. sb-<ref>-auth-token).
+    const hasSupabaseAuthCookie = request.cookies
+      .getAll()
+      .some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"));
 
-    if (!supabaseSession) {
+    if (!hasSupabaseAuthCookie) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
