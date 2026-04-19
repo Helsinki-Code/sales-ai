@@ -1,10 +1,18 @@
-import { GoogleAuth } from "google-auth-library";
+import { getVercelOidcToken } from "@vercel/oidc";
+import { ExternalAccountClient, GoogleAuth } from "google-auth-library";
 
 type ServiceAccountJson = {
   client_email?: string;
   private_key?: string;
   project_id?: string;
   [key: string]: unknown;
+};
+
+type WifConfig = {
+  projectNumber: string;
+  serviceAccountEmail: string;
+  poolId: string;
+  providerId: string;
 };
 
 let cachedAuthHeader: string | null = null;
@@ -58,6 +66,65 @@ function getServiceAccountJsonFromEnv(): ServiceAccountJson | null {
   }
 }
 
+function getWifConfigFromEnv(): WifConfig | null {
+  const projectNumber = process.env.GCP_PROJECT_NUMBER?.trim();
+  const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL?.trim();
+  const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID?.trim();
+  const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID?.trim();
+
+  if (!projectNumber || !serviceAccountEmail || !poolId || !providerId) {
+    return null;
+  }
+
+  return {
+    projectNumber,
+    serviceAccountEmail,
+    poolId,
+    providerId,
+  };
+}
+
+async function mintIdTokenHeaderFromWif(audience: string, config: WifConfig): Promise<string | null> {
+  const authClient = ExternalAccountClient.fromJSON({
+    type: "external_account",
+    audience: `//iam.googleapis.com/projects/${config.projectNumber}/locations/global/workloadIdentityPools/${config.poolId}/providers/${config.providerId}`,
+    subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+    token_url: "https://sts.googleapis.com/v1/token",
+    service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${config.serviceAccountEmail}:generateAccessToken`,
+    subject_token_supplier: {
+      getSubjectToken: async () => getVercelOidcToken(),
+    },
+  } as any);
+  if (!authClient) {
+    throw new Error("Failed to initialize external account auth client");
+  }
+
+  const auth = new GoogleAuth({ authClient });
+  const client = await auth.getIdTokenClient(audience);
+  const reqHeaders = await client.getRequestHeaders();
+
+  let headerValue: string | undefined;
+  if (typeof (reqHeaders as any).get === "function") {
+    headerValue =
+      (reqHeaders as any).get("Authorization") ||
+      (reqHeaders as any).get("authorization") ||
+      undefined;
+  } else {
+    headerValue =
+      (reqHeaders as Record<string, string | undefined>).Authorization ||
+      (reqHeaders as Record<string, string | undefined>).authorization;
+  }
+
+  if (!headerValue) return null;
+
+  const token = headerValue.replace(/^Bearer\s+/i, "");
+  const expMs = decodeJwtExpMs(token);
+  cachedAuthHeader = normalizeBearer(token);
+  cachedExpiresAtMs = expMs || Date.now() + 50 * 60 * 1000;
+
+  return cachedAuthHeader;
+}
+
 async function mintIdTokenHeader(audience: string, credentials: ServiceAccountJson): Promise<string | null> {
   const auth = new GoogleAuth({ credentials });
   const client = await auth.getIdTokenClient(audience);
@@ -94,6 +161,15 @@ export async function getUpstreamAuthorizationHeader(audience: string): Promise<
   const now = Date.now();
   if (cachedAuthHeader && cachedExpiresAtMs - 60_000 > now) {
     return cachedAuthHeader;
+  }
+
+  const wifConfig = getWifConfigFromEnv();
+  if (wifConfig) {
+    try {
+      return await mintIdTokenHeaderFromWif(audience, wifConfig);
+    } catch (error) {
+      console.error("Failed to mint Cloud Run ID token via Vercel OIDC/WIF", error);
+    }
   }
 
   const credentials = getServiceAccountJsonFromEnv();

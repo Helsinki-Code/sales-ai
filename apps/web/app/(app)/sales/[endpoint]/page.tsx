@@ -8,6 +8,25 @@ import { JobPoller } from "@/components/sales/job-poller";
 
 const SYNC_ENDPOINTS = ["quick", "research", "qualify", "contacts", "outreach", "followup", "prep", "proposal", "objections", "icp", "competitors"];
 const ASYNC_ENDPOINTS = ["prospect", "leads", "report", "report-pdf"];
+const ENDPOINT_ALIASES: Record<string, string> = {
+  "quick-scan": "quick",
+  quickscan: "quick",
+  quick_scan: "quick",
+  "company-research": "research",
+  "lead-qualification": "qualify",
+  "find-contacts": "contacts",
+  "generate-outreach": "outreach",
+  "follow-up-strategy": "followup",
+  "meeting-prep": "prep",
+  "sales-proposal": "proposal",
+  "objection-handling": "objections",
+  "icp-builder": "icp",
+  "competitor-analysis": "competitors",
+  "prospect-deep-dive": "prospect",
+  "lead-generation": "leads",
+  "generate-report": "report",
+  "report-to-pdf": "report-pdf"
+};
 
 const TOOL_INFO: Record<string, { name: string; description: string }> = {
   quick: { name: "Quick Scan", description: "Fast company overview from URL" },
@@ -32,7 +51,7 @@ type PageProps = {
 };
 
 export default function ToolPage({ params }: PageProps) {
-  const endpoint = params.endpoint;
+  const endpoint = ENDPOINT_ALIASES[params.endpoint] || params.endpoint;
   const isAsync = ASYNC_ENDPOINTS.includes(endpoint);
   const tool = TOOL_INFO[endpoint];
 

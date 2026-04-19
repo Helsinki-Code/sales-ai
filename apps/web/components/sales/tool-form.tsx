@@ -22,14 +22,18 @@ export function ToolForm({ endpoint, onSubmit, isLoading }: ToolFormProps) {
 
     const formData: Record<string, any> = {};
 
-    if (["quick", "research", "qualify", "contacts", "prep", "competitor"].includes(endpoint)) {
+    if (["quick", "research", "qualify", "contacts", "prep", "competitors"].includes(endpoint)) {
       formData.url = url;
     }
 
-    if (["outreach", "followup", "proposal"].includes(endpoint)) {
+    if (["outreach", "followup"].includes(endpoint)) {
       formData.prospect = prospect;
       if (url) formData.url = url;
       if (prospectData) formData.prospectData = JSON.parse(prospectData);
+    }
+
+    if (endpoint === "proposal") {
+      formData.client = client;
     }
 
     if (endpoint === "icp") {

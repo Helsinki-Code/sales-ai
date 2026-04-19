@@ -1,14 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ToolForm } from "@/components/sales/tool-form";
 import { ResultViewer } from "@/components/sales/result-viewer";
 import { JobPoller } from "@/components/sales/job-poller";
+import { CodeBlock } from "@/components/reference/code-block";
+import { generateSnippet, getEndpointInfo } from "@/components/reference/snippet-generator";
 
 const SYNC_ENDPOINTS = ["quick", "research", "qualify", "contacts", "outreach", "followup", "prep", "proposal", "objections", "icp", "competitors"];
 const ASYNC_ENDPOINTS = ["prospect", "leads", "report", "report-pdf"];
+const ENDPOINT_ALIASES: Record<string, string> = {
+  "quick-scan": "quick",
+  quickscan: "quick",
+  quick_scan: "quick",
+  "company-research": "research",
+  "lead-qualification": "qualify",
+  "find-contacts": "contacts",
+  "generate-outreach": "outreach",
+  "follow-up-strategy": "followup",
+  "meeting-prep": "prep",
+  "sales-proposal": "proposal",
+  "objection-handling": "objections",
+  "icp-builder": "icp",
+  "competitor-analysis": "competitors",
+  "prospect-deep-dive": "prospect",
+  "lead-generation": "leads",
+  "generate-report": "report",
+  "report-to-pdf": "report-pdf"
+};
+type Language = "curl" | "python" | "typescript" | "javascript" | "go" | "php" | "ruby";
+const LANGUAGES: Language[] = ["curl", "python", "typescript", "javascript", "go", "php", "ruby"];
 
 const TOOL_INFO: Record<string, { name: string; description: string }> = {
   quick: { name: "Quick Scan", description: "Fast company overview from URL" },
@@ -28,15 +51,42 @@ const TOOL_INFO: Record<string, { name: string; description: string }> = {
   "report-pdf": { name: "Report to PDF", description: "Export as PDF (async)" }
 };
 
+function sampleValueForParam(param: { name: string; type: string }): string | number | string[] {
+  if (param.name === "url") return "https://example.com";
+  if (param.name === "prospect") return "Jane Doe, VP Sales";
+  if (param.name === "client") return "Acme Corp";
+  if (param.name === "topic") return "Price objection";
+  if (param.name === "description") return "B2B SaaS companies with 50-500 employees in North America";
+  if (param.name === "count") return 25;
+  if (param.name === "jobIds") return ["550e8400-e29b-41d4-a716-446655440000"];
+  if (param.type === "number") return 1;
+  if (param.type === "array") return ["sample"];
+  return "sample";
+}
+
+function buildDefaultPayload(endpoint: string): Record<string, unknown> {
+  const info = getEndpointInfo(endpoint);
+  if (!info) return {};
+
+  const payload: Record<string, unknown> = {};
+  for (const param of info.params) {
+    if (param.required) {
+      payload[param.name] = sampleValueForParam({ name: param.name, type: param.type });
+    }
+  }
+  return payload;
+}
+
 export default function ToolPage() {
   const params = useParams<{ endpoint?: string | string[] }>();
   const rawEndpoint = params.endpoint;
-  const endpoint =
+  const endpointParam =
     typeof rawEndpoint === "string"
       ? rawEndpoint
       : Array.isArray(rawEndpoint)
       ? rawEndpoint[0] || ""
       : "";
+  const endpoint = ENDPOINT_ALIASES[endpointParam] || endpointParam;
   const isAsync = ASYNC_ENDPOINTS.includes(endpoint);
   const tool = TOOL_INFO[endpoint];
 
@@ -44,6 +94,22 @@ export default function ToolPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSnippets, setShowSnippets] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>("curl");
+  const [lastPayload, setLastPayload] = useState<Record<string, any> | null>(null);
+  const [baseUrl, setBaseUrl] = useState("https://your-app.vercel.app");
+
+  useEffect(() => {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+    if (envUrl) {
+      setBaseUrl(envUrl);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      setBaseUrl(window.location.origin.replace(/\/+$/, ""));
+    }
+  }, []);
 
   if (!tool) {
     return (
@@ -62,6 +128,7 @@ export default function ToolPage() {
     setError(null);
     setResult(null);
     setJobId(null);
+    setLastPayload(formData);
 
     try {
       const res = await fetch(`/api/sales/${endpoint}`, {
@@ -116,18 +183,35 @@ export default function ToolPage() {
             >
               {error}
             </div>
-          )}
-          <Link
-            href={`/reference?endpoint=${endpoint}`}
+      )}
+          <button
+            type="button"
+            onClick={() => setShowSnippets((prev) => !prev)}
             style={{
               display: "block",
               marginTop: "1rem",
               color: "var(--accent)",
               textDecoration: "none",
-              fontSize: "0.9rem"
+              fontSize: "0.9rem",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer"
             }}
           >
-            View code snippets
+            {showSnippets ? "Hide code snippets" : "View code snippets"}
+          </button>
+          <Link
+            href={`/reference?endpoint=${endpoint}`}
+            style={{
+              display: "block",
+              marginTop: "0.6rem",
+              color: "var(--slate)",
+              textDecoration: "none",
+              fontSize: "0.85rem"
+            }}
+          >
+            Open full API reference
           </Link>
         </div>
 
@@ -145,6 +229,48 @@ export default function ToolPage() {
           )}
         </div>
       </div>
+
+      {showSnippets && (
+        <section className="card" style={{ marginTop: "2rem" }}>
+          <h3 style={{ marginTop: 0 }}>Code Snippets for This Run</h3>
+          <p style={{ color: "var(--slate)", marginTop: "0.25rem" }}>
+            Uses your current endpoint and the most recent submitted payload.
+          </p>
+
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", overflowX: "auto" }}>
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setSelectedLanguage(lang)}
+                style={{
+                  padding: "0.45rem 0.9rem",
+                  border: "1px solid var(--border)",
+                  backgroundColor: selectedLanguage === lang ? "var(--accent)" : "transparent",
+                  color: selectedLanguage === lang ? "white" : "var(--ink)",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "0.82rem",
+                  fontWeight: selectedLanguage === lang ? "600" : "400",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+
+          <CodeBlock
+            code={generateSnippet(
+              selectedLanguage,
+              endpoint,
+              lastPayload || buildDefaultPayload(endpoint),
+              "YOUR_API_KEY",
+              baseUrl
+            )}
+            language={selectedLanguage}
+          />
+        </section>
+      )}
     </main>
   );
 }

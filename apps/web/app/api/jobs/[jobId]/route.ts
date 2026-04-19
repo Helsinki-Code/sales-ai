@@ -81,7 +81,7 @@ export async function GET(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web via Vercel OIDC/WIF env vars (or temporary bearer token), and grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },
@@ -150,7 +150,7 @@ export async function DELETE(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web via Vercel OIDC/WIF env vars (or temporary bearer token), and grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },

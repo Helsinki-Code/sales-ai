@@ -7,6 +7,25 @@ const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-4685260
 const SYNC_ENDPOINTS = ["quick", "research", "qualify", "contacts", "outreach", "followup", "prep", "proposal", "objections", "icp", "competitors"];
 const ASYNC_ENDPOINTS = ["prospect", "leads", "report", "report-pdf"];
 const ALL_ENDPOINTS = [...SYNC_ENDPOINTS, ...ASYNC_ENDPOINTS];
+const ENDPOINT_ALIASES: Record<string, string> = {
+  "quick-scan": "quick",
+  quickscan: "quick",
+  quick_scan: "quick",
+  "company-research": "research",
+  "lead-qualification": "qualify",
+  "find-contacts": "contacts",
+  "generate-outreach": "outreach",
+  "follow-up-strategy": "followup",
+  "meeting-prep": "prep",
+  "sales-proposal": "proposal",
+  "objection-handling": "objections",
+  "icp-builder": "icp",
+  "competitor-analysis": "competitors",
+  "prospect-deep-dive": "prospect",
+  "lead-generation": "leads",
+  "generate-report": "report",
+  "report-to-pdf": "report-pdf"
+};
 
 type UpstreamPayload = {
   success?: boolean;
@@ -42,12 +61,13 @@ export async function POST(
   { params }: { params: Promise<{ endpoint: string }> }
 ) {
   try {
-    const { endpoint } = await params;
+    const { endpoint: rawEndpoint } = await params;
+    const endpoint = ENDPOINT_ALIASES[rawEndpoint] || rawEndpoint;
 
     // Validate endpoint
     if (!ALL_ENDPOINTS.includes(endpoint)) {
       return NextResponse.json(
-        { success: false, error: { code: "INVALID_ENDPOINT", message: `Unknown endpoint: ${endpoint}` } },
+        { success: false, error: { code: "INVALID_ENDPOINT", message: `Unknown endpoint: ${rawEndpoint}` } },
         { status: 400 }
       );
     }
@@ -105,7 +125,7 @@ export async function POST(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web via Vercel OIDC/WIF env vars (or temporary bearer token), and grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },
