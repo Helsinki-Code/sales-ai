@@ -44,10 +44,13 @@ export default function AuthCallbackContent() {
       }
 
       try {
-        // Get our PKCE code verifier stored during the authorize request
-        const codeVerifier = sessionStorage.getItem("code_verifier");
+        // Get our PKCE code verifier stored during the authorize request.
+        // Try localStorage first, then sessionStorage for backward compatibility.
+        const codeVerifier =
+          localStorage.getItem("code_verifier") ??
+          sessionStorage.getItem("code_verifier");
         if (!codeVerifier) {
-          console.error("No code verifier in sessionStorage");
+          console.error("No code verifier in browser storage");
           router.replace("/login?error=no_verifier");
           return;
         }
@@ -91,6 +94,8 @@ export default function AuthCallbackContent() {
           return;
         }
 
+        localStorage.removeItem("code_verifier");
+        localStorage.removeItem("oauth_state");
         sessionStorage.removeItem("code_verifier");
         sessionStorage.removeItem("oauth_state");
         router.replace(nextPath);

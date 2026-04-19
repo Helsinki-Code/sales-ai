@@ -93,7 +93,10 @@ export default function LoginContent() {
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = btoa(JSON.stringify({ next: nextPath }));
 
-    // Store verifier and state in sessionStorage for callback
+    // Store verifier and state in localStorage (plus sessionStorage fallback)
+    // so callback can still complete even if browser opens a new tab context.
+    localStorage.setItem("code_verifier", codeVerifier);
+    localStorage.setItem("oauth_state", state);
     sessionStorage.setItem("code_verifier", codeVerifier);
     sessionStorage.setItem("oauth_state", state);
 
