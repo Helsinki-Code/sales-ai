@@ -144,7 +144,8 @@ export function generateSnippet(
   apiKey: string,
   baseUrl: string
 ): string {
-  const url = `${baseUrl}/api/sales/${endpoint}`;
+  const safeBaseUrl = baseUrl.replace(/\/+$/, "");
+  const url = `${safeBaseUrl}/api/sales/${endpoint}`;
   const jsonBody = JSON.stringify(params);
 
   switch (lang) {
@@ -255,7 +256,8 @@ puts JSON.parse(response.body)`;
 }
 
 export function generatePollingSnippet(lang: Language, baseUrl: string, apiKey: string, jobId: string): string {
-  const url = `${baseUrl}/api/jobs/${jobId}`;
+  const safeBaseUrl = baseUrl.replace(/\/+$/, "");
+  const url = `${safeBaseUrl}/api/jobs/${jobId}`;
 
   switch (lang) {
     case "curl":

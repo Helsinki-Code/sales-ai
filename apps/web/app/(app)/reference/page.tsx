@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { generateSnippet, generatePollingSnippet, getEndpointInfo } from "@/components/reference/snippet-generator";
 import { CodeBlock } from "@/components/reference/code-block";
 
@@ -16,7 +17,25 @@ interface FormData {
   [key: string]: string | number;
 }
 
+function sanitizeBaseUrl(raw: string) {
+  return raw.replace(/\/+$/, "");
+}
+
+function sampleValueForParam(param: { name: string; type: string }): string | number | string[] {
+  if (param.name === "url") return "https://example.com";
+  if (param.name === "prospect") return "Jane Doe, VP Sales";
+  if (param.name === "client") return "Acme Corp";
+  if (param.name === "topic") return "Price objection";
+  if (param.name === "description") return "B2B SaaS companies with 50-500 employees in North America";
+  if (param.name === "count") return 25;
+  if (param.name === "jobIds") return ["550e8400-e29b-41d4-a716-446655440000"];
+  if (param.type === "number") return 1;
+  if (param.type === "array") return ["sample"];
+  return "sample";
+}
+
 export default function ReferencePage() {
+  const searchParams = useSearchParams();
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>("qualify");
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("curl");
   const [apiKey, setApiKey] = useState<string>("YOUR_API_KEY");
@@ -24,15 +43,17 @@ export default function ReferencePage() {
   const [formData, setFormData] = useState<FormData>({});
 
   useEffect(() => {
-    setBaseUrl(process.env.NEXT_PUBLIC_APP_URL || "https://your-app.vercel.app");
+    const urlFromEnv = process.env.NEXT_PUBLIC_APP_URL || "https://your-app.vercel.app";
+    setBaseUrl(sanitizeBaseUrl(urlFromEnv));
 
     // Fetch API key on mount
     (async () => {
       try {
         const res = await fetch("/api/admin/api-keys");
         const data = await res.json();
-        if (res.ok && Array.isArray(data) && data.length > 0) {
-          const activeKey = data.find((k: any) => k.status === "active");
+        const keys = Array.isArray(data?.data) ? data.data : [];
+        if (res.ok && keys.length > 0) {
+          const activeKey = keys.find((k: any) => k.status === "active");
           if (activeKey) {
             // Show prefix only for security
             setApiKey(`sak_${activeKey.id.substring(0, 8)}...`);
@@ -43,6 +64,14 @@ export default function ReferencePage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const endpointFromQuery = searchParams.get("endpoint");
+    if (endpointFromQuery && ALL_ENDPOINTS.includes(endpointFromQuery)) {
+      setSelectedEndpoint(endpointFromQuery);
+      setFormData({});
+    }
+  }, [searchParams]);
 
   const endpointInfo = getEndpointInfo(selectedEndpoint);
   if (!endpointInfo) return null;
@@ -105,7 +134,8 @@ export default function ReferencePage() {
   const buildPayload = (): Record<string, any> => {
     const payload: Record<string, any> = {};
     endpointInfo.params.forEach((param) => {
-      if (formData[param.name]) {
+      const rawValue = formData[param.name];
+      if (rawValue !== undefined && rawValue !== "") {
         const value = formData[param.name];
         if (param.type === "number") {
           payload[param.name] = Number(value);
@@ -118,6 +148,8 @@ export default function ReferencePage() {
         } else {
           payload[param.name] = value;
         }
+      } else if (param.required) {
+        payload[param.name] = sampleValueForParam(param);
       }
     });
     return payload;

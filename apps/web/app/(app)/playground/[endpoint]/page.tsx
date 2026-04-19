@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ToolForm } from "@/components/sales/tool-form";
 import { ResultViewer } from "@/components/sales/result-viewer";
 import { JobPoller } from "@/components/sales/job-poller";
@@ -27,12 +28,15 @@ const TOOL_INFO: Record<string, { name: string; description: string }> = {
   "report-pdf": { name: "Report to PDF", description: "Export as PDF (async)" }
 };
 
-type PageProps = {
-  params: { endpoint: string };
-};
-
-export default function ToolPage({ params }: PageProps) {
-  const endpoint = params.endpoint;
+export default function ToolPage() {
+  const params = useParams<{ endpoint?: string | string[] }>();
+  const rawEndpoint = params.endpoint;
+  const endpoint =
+    typeof rawEndpoint === "string"
+      ? rawEndpoint
+      : Array.isArray(rawEndpoint)
+      ? rawEndpoint[0] || ""
+      : "";
   const isAsync = ASYNC_ENDPOINTS.includes(endpoint);
   const tool = TOOL_INFO[endpoint];
 
@@ -88,7 +92,7 @@ export default function ToolPage({ params }: PageProps) {
     <main>
       <div style={{ marginBottom: "2rem" }}>
         <Link href="/playground" style={{ color: "var(--accent)", textDecoration: "none" }}>
-          ← Back to Playground
+          Back to Playground
         </Link>
       </div>
 
@@ -123,7 +127,7 @@ export default function ToolPage({ params }: PageProps) {
               fontSize: "0.9rem"
             }}
           >
-            → View code snippets
+            View code snippets
           </Link>
         </div>
 
