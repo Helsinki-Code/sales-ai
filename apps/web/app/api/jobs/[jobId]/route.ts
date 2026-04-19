@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAuth } from "@/lib/api/resolve-auth";
+import { getUpstreamAuthorizationHeader } from "@/lib/google/cloud-run-invoker";
 
 const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
 
@@ -59,11 +60,9 @@ export async function GET(
       headers["x-workspace-id"] = auth.workspaceId;
     }
 
-    const upstreamBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
-    if (upstreamBearer) {
-      headers["Authorization"] = upstreamBearer.toLowerCase().startsWith("bearer ")
-        ? upstreamBearer
-        : `Bearer ${upstreamBearer}`;
+    const upstreamAuthHeader = await getUpstreamAuthorizationHeader(SALES_API_URL);
+    if (upstreamAuthHeader) {
+      headers["Authorization"] = upstreamAuthHeader;
     }
 
     // Call API
@@ -82,7 +81,7 @@ export async function GET(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. If Cloud Run is private, allow unauthenticated invocations or configure SALES_API_BEARER_TOKEN on web.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },
@@ -130,11 +129,9 @@ export async function DELETE(
       headers["x-workspace-id"] = auth.workspaceId;
     }
 
-    const upstreamBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
-    if (upstreamBearer) {
-      headers["Authorization"] = upstreamBearer.toLowerCase().startsWith("bearer ")
-        ? upstreamBearer
-        : `Bearer ${upstreamBearer}`;
+    const upstreamAuthHeader = await getUpstreamAuthorizationHeader(SALES_API_URL);
+    if (upstreamAuthHeader) {
+      headers["Authorization"] = upstreamAuthHeader;
     }
 
     // Call API
@@ -153,7 +150,7 @@ export async function DELETE(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. If Cloud Run is private, allow unauthenticated invocations or configure SALES_API_BEARER_TOKEN on web.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAuth } from "@/lib/api/resolve-auth";
+import { getUpstreamAuthorizationHeader } from "@/lib/google/cloud-run-invoker";
 
 const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
 
@@ -76,12 +77,10 @@ export async function POST(
       headers["x-workspace-id"] = auth.workspaceId;
     }
 
-    // Optional: allows server-side invoker auth passthrough if your upstream requires it.
-    const upstreamBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
-    if (upstreamBearer) {
-      headers["Authorization"] = upstreamBearer.toLowerCase().startsWith("bearer ")
-        ? upstreamBearer
-        : `Bearer ${upstreamBearer}`;
+    // Cloud Run invoker auth (private service compatible): service-account ID token or static bearer fallback.
+    const upstreamAuthHeader = await getUpstreamAuthorizationHeader(SALES_API_URL);
+    if (upstreamAuthHeader) {
+      headers["Authorization"] = upstreamAuthHeader;
     }
 
     // For async endpoints, add Idempotency-Key if not present
@@ -106,7 +105,7 @@ export async function POST(
             error: {
               code: "UPSTREAM_AUTH_BLOCKED",
               message:
-                "Upstream API rejected this request before app auth. If Cloud Run is private, allow unauthenticated invocations or configure SALES_API_BEARER_TOKEN on web.",
+                "Upstream API rejected this request before app auth. Configure Cloud Run invoker auth on web (service-account key env) or grant a permitted invoker principal.",
               details: raw.slice(0, 500)
             }
           },
