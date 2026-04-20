@@ -1,0 +1,56 @@
+﻿<svg width="900" height="620" viewBox="0 0 900 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#E2E8F0"/>
+    </pattern>
+    <filter id="shadow-lg" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#F8FAFC"/>
+  
+  <!-- Main Container Card -->
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-lg)"/>
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="url(#dot-grid)"/>
+
+  <!-- Left Documentation Pane -->
+  <rect x="140" y="140" width="280" height="340" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+  <rect x="170" y="170" width="140" height="12" rx="6" fill="#0F172A"/>
+  
+  <rect x="170" y="210" width="220" height="6" rx="3" fill="#CBD5E1"/>
+  <rect x="170" y="230" width="180" height="6" rx="3" fill="#CBD5E1"/>
+  <rect x="170" y="250" width="200" height="6" rx="3" fill="#CBD5E1"/>
+  
+  <circle cx="180" cy="320" r="10" fill="#EEF2FF" stroke="#4F46E5" stroke-width="2"/>
+  <circle cx="180" cy="320" r="4" fill="#4F46E5"/>
+  <rect x="204" y="316" width="120" height="8" rx="4" fill="#0F172A"/>
+  <path d="M 180 340 L 180 370" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="180" cy="390" r="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <rect x="204" y="386" width="160" height="8" rx="4" fill="#94A3B8"/>
+
+  <!-- Right Terminal Pane -->
+  <rect x="450" y="140" width="310" height="340" rx="16" fill="#0F172A" filter="url(#shadow-lg)"/>
+  <path d="M 450 180 L 760 180" stroke="#1E293B" stroke-width="1.5"/>
+  <circle cx="474" cy="160" r="4" fill="#334155"/>
+  <circle cx="490" cy="160" r="4" fill="#334155"/>
+  <circle cx="506" cy="160" r="4" fill="#334155"/>
+
+  <!-- Code Lines -->
+  <rect x="480" y="210" width="80" height="8" rx="4" fill="#818CF8"/>
+  <rect x="570" y="210" width="120" height="8" rx="4" fill="#E2E8F0"/>
+  
+  <rect x="480" y="234" width="140" height="8" rx="4" fill="#E2E8F0"/>
+  <rect x="480" y="258" width="60" height="8" rx="4" fill="#818CF8"/>
+  <rect x="550" y="258" width="160" height="8" rx="4" fill="#E2E8F0"/>
+  
+  <rect x="480" y="282" width="200" height="8" rx="4" fill="#E2E8F0"/>
+
+  <rect x="480" y="320" width="40" height="8" rx="4" fill="#3B82F6"/>
+  <rect x="530" y="320" width="150" height="8" rx="4" fill="#10B981"/>
+
+  <!-- Connecting UI Element -->
+  <path d="M 420 320 C 435 320, 435 320, 450 320" stroke="#4F46E5" stroke-width="2"/>
+  <path d="M 444 316 L 450 320 L 444 324" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

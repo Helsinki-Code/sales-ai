@@ -1,0 +1,45 @@
+﻿<svg width="900" height="620" viewBox="0 0 900 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#E2E8F0"/>
+    </pattern>
+    <filter id="shadow-lg" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+    <linearGradient id="shield-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EEF2FF"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#F8FAFC"/>
+  
+  <!-- Main Container Card -->
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-lg)"/>
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="url(#dot-grid)"/>
+
+  <!-- Orbiting Protection Rings -->
+  <ellipse cx="450" cy="310" rx="220" ry="80" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="6 6" fill="none" transform="rotate(-15 450 310)"/>
+  <ellipse cx="450" cy="310" rx="220" ry="80" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="6 6" fill="none" transform="rotate(15 450 310)"/>
+
+  <!-- Background Glow behind Shield -->
+  <circle cx="450" cy="310" r="100" fill="#4F46E5" fill-opacity="0.05" filter="blur(20px)"/>
+
+  <!-- High-Fidelity Shield Outline -->
+  <path d="M 450 180 L 530 210 L 530 310 C 530 380, 450 430, 450 430 C 450 430, 370 380, 370 310 L 370 210 Z" fill="url(#shield-grad)" stroke="#4F46E5" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 450 196 L 514 220 L 514 308 C 514 366, 450 410, 450 410 C 450 410, 386 366, 386 308 L 386 220 Z" stroke="#818CF8" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- Central Keyhole Element -->
+  <circle cx="450" cy="290" r="14" fill="#0F172A"/>
+  <path d="M 442 296 L 458 296 L 464 326 L 436 326 Z" fill="#0F172A"/>
+
+  <!-- Secure Tokens/Chips (Floating Data Checks) -->
+  <rect x="250" y="180" width="100" height="32" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <circle cx="266" cy="196" r="6" fill="#10B981"/>
+  <rect x="282" y="193" width="50" height="6" rx="3" fill="#0F172A"/>
+
+  <rect x="550" y="400" width="100" height="32" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <circle cx="566" cy="416" r="6" fill="#10B981"/>
+  <rect x="582" y="413" width="40" height="6" rx="3" fill="#0F172A"/>
+</svg>

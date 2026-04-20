@@ -1,0 +1,61 @@
+﻿<svg width="900" height="620" viewBox="0 0 900 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#E2E8F0"/>
+    </pattern>
+    <filter id="shadow-lg" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+    <filter id="shadow-sm" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+    <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#F8FAFC"/>
+  
+  <!-- Main Dashboard Card -->
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-lg)"/>
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="url(#dot-grid)"/>
+
+  <!-- Top Navigation/Header -->
+  <path d="M 80 130 L 820 130" stroke="#E2E8F0" stroke-width="1.5"/>
+  <circle cx="110" cy="100" r="4" fill="#CBD5E1"/>
+  <circle cx="126" cy="100" r="4" fill="#CBD5E1"/>
+  <circle cx="142" cy="100" r="4" fill="#CBD5E1"/>
+  <rect x="170" y="96" width="120" height="8" rx="4" fill="#0F172A"/>
+
+  <!-- Chart Area -->
+  <path d="M 140 380 L 760 380" stroke="#E2E8F0" stroke-width="1.5"/>
+  <path d="M 140 180 L 140 380" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 346 180 L 346 380" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 553 180 L 553 380" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 760 180 L 760 380" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+  <!-- Smooth Area Chart -->
+  <path d="M 140 340 C 250 340, 280 180, 420 220 C 550 260, 650 140, 760 100 L 760 380 L 140 380 Z" fill="url(#chart-fill)"/>
+  <path d="M 140 340 C 250 340, 280 180, 420 220 C 550 260, 650 140, 760 100" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Data Point -->
+  <circle cx="625" cy="168" r="5" fill="#FFFFFF" stroke="#4F46E5" stroke-width="2.5"/>
+  <rect x="585" y="110" width="80" height="36" rx="8" fill="#0F172A" filter="url(#shadow-sm)"/>
+  <rect x="605" y="126" width="40" height="4" rx="2" fill="#FFFFFF"/>
+
+  <!-- Bottom Stat Cards -->
+  <rect x="140" y="420" width="180" height="80" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="160" y="445" width="60" height="6" rx="3" fill="#94A3B8"/>
+  <rect x="160" y="465" width="100" height="12" rx="6" fill="#0F172A"/>
+
+  <rect x="360" y="420" width="180" height="80" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="380" y="445" width="80" height="6" rx="3" fill="#94A3B8"/>
+  <rect x="380" y="465" width="70" height="12" rx="6" fill="#0F172A"/>
+  <path d="M 480 471 L 510 471" stroke="#4F46E5" stroke-width="3" stroke-linecap="round"/>
+
+  <rect x="580" y="420" width="180" height="80" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="600" y="445" width="50" height="6" rx="3" fill="#94A3B8"/>
+  <rect x="600" y="465" width="90" height="12" rx="6" fill="#0F172A"/>
+</svg>

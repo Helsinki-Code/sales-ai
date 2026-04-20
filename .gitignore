@@ -11,3 +11,4 @@ codex_chat.txt
 supabase_oauth_2.md
 apps/web/tsconfig.tsbuildinfo
 sales-ai-web-log-export*.json
+vercel-run-invoker-key.json

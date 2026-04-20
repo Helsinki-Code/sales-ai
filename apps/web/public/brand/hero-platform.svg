@@ -1,0 +1,61 @@
+﻿<svg width="900" height="620" viewBox="0 0 900 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#E2E8F0"/>
+    </pattern>
+    <filter id="shadow-lg" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.06"/>
+    </filter>
+    <filter id="shadow-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#4F46E5" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" fill="#F8FAFC"/>
+  
+  <!-- Main Container Card -->
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-lg)"/>
+  <rect x="80" y="70" width="740" height="480" rx="20" fill="url(#dot-grid)"/>
+
+  <!-- Orbital Rings -->
+  <circle cx="450" cy="310" r="120" stroke="#E2E8F0" stroke-width="1.5" fill="none"/>
+  <circle cx="450" cy="310" r="200" stroke="#E2E8F0" stroke-width="1.5" fill="none" stroke-dasharray="8 8"/>
+
+  <!-- Connections -->
+  <path d="M 280 180 L 450 310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 280 440 L 450 310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 620 180 L 450 310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M 620 440 L 450 310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+  <!-- Central Hub Core -->
+  <rect x="390" y="250" width="120" height="120" rx="24" fill="#0F172A" filter="url(#shadow-glow)"/>
+  <rect x="400" y="260" width="100" height="100" rx="18" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <!-- Central Abstract Mark -->
+  <path d="M 450 292 L 436 284 L 436 299 L 450 307 Z" fill="#4F46E5"/>
+  <path d="M 450 292 L 464 284 L 464 299 L 450 307 Z" fill="#818CF8"/>
+  <path d="M 450 292 L 436 284 L 450 276 L 464 284 Z" fill="#E0E7FF"/>
+  <rect x="420" y="325" width="60" height="6" rx="3" fill="#64748B"/>
+  <rect x="435" y="340" width="30" height="4" rx="2" fill="#475569"/>
+
+  <!-- Surrounding Platform Nodes -->
+  <!-- Top Left -->
+  <rect x="220" y="150" width="120" height="60" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="236" y="166" width="20" height="20" rx="6" fill="#EEF2FF"/>
+  <rect x="264" y="172" width="60" height="8" rx="4" fill="#0F172A"/>
+
+  <!-- Bottom Left -->
+  <rect x="220" y="410" width="120" height="60" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="236" y="426" width="20" height="20" rx="6" fill="#EEF2FF"/>
+  <rect x="264" y="432" width="50" height="8" rx="4" fill="#0F172A"/>
+
+  <!-- Top Right -->
+  <rect x="560" y="150" width="120" height="60" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="576" y="166" width="20" height="20" rx="6" fill="#EEF2FF"/>
+  <rect x="604" y="172" width="60" height="8" rx="4" fill="#0F172A"/>
+
+  <!-- Bottom Right -->
+  <rect x="560" y="410" width="120" height="60" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow-sm)"/>
+  <rect x="576" y="426" width="20" height="20" rx="6" fill="#EEF2FF"/>
+  <rect x="604" y="432" width="40" height="8" rx="4" fill="#0F172A"/>
+</svg>
