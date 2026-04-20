@@ -1,31 +1,41 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { blogArticles } from "@/lib/blog";
+import { getBlogIndexItems } from "@/lib/blog-content";
 
 export const metadata: Metadata = {
   title: "Sales AI Blog | Developer GTM, BYOK, and Sales Automation Guides",
   description:
-    "Actionable developer-first articles on sales automation APIs, BYOK architecture, async workflows, and production security patterns.",
+    "Long-form developer-first guides on sales automation APIs, BYOK architecture, async job workflows, and production security patterns.",
 };
 
+function formatDate(isoDate: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(isoDate));
+}
+
 export default function BlogIndexPage() {
+  const articles = getBlogIndexItems();
+
   return (
     <main>
-      <section className="container hero hero-with-visual">
+      <section className="container hero hero-with-visual blog-index-hero">
         <div>
-          <p className="eyebrow">Sales AI Blog</p>
-          <h1>SEO-Driven Articles For Builders Shipping Revenue Workflows</h1>
+          <p className="eyebrow">Sales AI Editorial</p>
+          <h1>Production-Grade Revenue Engineering Guides</h1>
           <p>
-            Every article in this library is generated from your strategy sheet and aligned to
-            high-intent GTM keywords. Use them for organic growth, technical onboarding, and sales
-            enablement.
+            Practical long-form documentation for teams shipping AI sales automation in real
+            systems. Each post includes implementation detail, architectural context, and
+            deploy-ready examples.
           </p>
         </div>
         <figure className="visual-panel">
           <Image
             src="/brand/blog-insights.svg"
-            alt="Minimal analytics illustration showing content strategy insights and organic growth trends"
+            alt="Editorial analytics dashboard illustration for the Sales AI blog"
             width={900}
             height={620}
             priority
@@ -33,32 +43,36 @@ export default function BlogIndexPage() {
         </figure>
       </section>
 
-      <section className="container main-section">
-        <div className="section-header-row">
-          <h2 className="section-title">Article Library ({blogArticles.length})</h2>
-          <p className="muted">Sorted by strategic opportunity score and search intent value.</p>
+      <section className="container main-section blog-index-section">
+        <div className="section-header-row blog-index-heading">
+          <h2 className="section-title">Published Articles ({articles.length})</h2>
+          <p className="muted">Markdown-native articles with technical depth and SEO metadata.</p>
         </div>
 
         <div className="blog-grid">
-          {blogArticles.map((article) => (
-            <article key={article.slug} className="blog-card">
-              <Image
-                src={article.heroImage}
-                alt={`Brand illustration for ${article.keyword} article`}
-                width={900}
-                height={620}
-              />
+          {articles.map((article) => (
+            <article key={article.slug} className="blog-card blog-card-rich">
+              {article.heroImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={article.heroImage.src}
+                  alt={article.heroImage.alt}
+                  loading="lazy"
+                  className="blog-card-image"
+                />
+              ) : null}
+
               <div className="blog-card-body">
                 <div className="pill-row">
-                  <span className="pill">KD {article.kd}</span>
-                  <span className="pill">Vol {article.volume}</span>
-                  <span className="pill">Score {article.opportunityScore}/10</span>
+                  <span className="pill">{formatDate(article.publishedAt)}</span>
+                  <span className="pill">{article.readingTimeMinutes} min read</span>
+                  {article.keyword ? <span className="pill">{article.keyword}</span> : null}
                 </div>
                 <h3>{article.title}</h3>
                 <p>{article.description}</p>
-                <p className="muted small">{article.category}</p>
+                <p className="muted small">Audience: {article.audience}</p>
                 <Link className="text-link" href={`/blog/${article.slug}`}>
-                  Read article -&gt;
+                  Read full article -&gt;
                 </Link>
               </div>
             </article>
@@ -68,4 +82,3 @@ export default function BlogIndexPage() {
     </main>
   );
 }
-

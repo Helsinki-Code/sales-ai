@@ -18,6 +18,7 @@
     "dev:api": "npm run dev -w @sales-ai/api",
     "dev:worker": "npm run dev -w @sales-ai/worker",
     "dev:web": "npm run dev -w @sales-ai/web",
+    "blog:images": "python scripts/generate-blog-images.py",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",

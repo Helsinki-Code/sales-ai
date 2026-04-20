@@ -1,0 +1,330 @@
+{
+  "ai-outreach-email-api": [
+    {
+      "id": "ai-outreach-email-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode terminal split-screen illustration. LEFT PANEL (40% width): a minimalist POST request shown in cyan monospace code. Headers show Authorization Bearer key. JSON body shows \"prospect\" and \"context\" fields in green. RIGHT PANEL (60% width): a glowing response card showing the JSON response. \"subject\" field glows in electric yellow: \"DataFlow's Series B + a question about your sales stack\". \"body\" field below shows first 3 lines of a personalised email in white text fading to grey. A small timer badge shows \"1.8s\" in green. Background: deep charcoal #0D0D0D. Connection arrow between panels pulses with blue light. No people. 4K, 16:9.",
+      "alt": "AI outreach email API showing POST /sales/outreach request with prospect context returning personalised subject line and email body in 1.8 seconds JSON response",
+      "src": "/blog/ai-outreach-email-api/img-01.webp"
+    },
+    {
+      "id": "ai-outreach-email-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode split comparison. LEFT \"SaaS Outreach Dashboard\": a blurred dashboard mockup showing multi-step wizard: \"Step 1 of 6: Brand Voice\". Red annotations: \"Per-seat pricing\", \"Vendor controls the model\", \"Text output only\". RIGHT \"API-First Outreach\": a clean POST request terminal window and structured JSON response card. Green annotations: \"BYOK \u2014 your Anthropic key\", \"Typed JSON {subject, body}\", \"One call, no wizard\". Dark charcoal background, red accents left, green accents right. No people. 16:9.",
+      "alt": "AI outreach email API comparison showing SaaS dashboard multi-step wizard versus API-first single POST call returning structured JSON with subject and body fields",
+      "src": "/blog/ai-outreach-email-api/img-02.webp"
+    },
+    {
+      "id": "ai-outreach-email-api-img-03",
+      "index": 3,
+      "prompt": "Dark-mode three-card layout side by side. Each card is a communication channel mockup. LEFT card (email icon, blue): shows an email with \"Subject:\" line and 4 lines of body text. MIDDLE card (LinkedIn icon, navy blue): shows a shorter LinkedIn DM format without subject, conversational tone, 3 lines visible. RIGHT card (SMS icon, green): shows a mobile SMS bubble with very short single-line message. All three generated from the same prospect description shown as small text at the top. Clean flat design, dark background. No people. 16:9.",
+      "alt": "AI outreach email API three channel variants showing email with subject line, LinkedIn DM format, and SMS format generated from same prospect description with different lengths",
+      "src": "/blog/ai-outreach-email-api/img-03.webp"
+    }
+  ],
+  "add-ai-to-sales-workflow": [
+    {
+      "id": "add-ai-to-sales-workflow-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode pipeline diagram illustration. A horizontal five-stage developer workflow pipeline floats on a dark charcoal canvas. Each stage is a glowing card connected by animated arrow paths: Stage 1 (purple pill): \"Prospect Discovery\" with async clock icon. Stage 2 (blue pill): \"Research\" with magnifier icon. Stage 3 (green pill): \"Qualify\" with score gauge showing 87. Stage 4 (orange pill): \"Outreach Copy\" with pencil icon. Stage 5 (electric blue pill): \"Follow-Up Sequence\" with calendar/chain icon. Below each stage card, a tiny code snippet label shows the endpoint name (/sales/prospect, /sales/research, etc.) in cyan monospace. Background: deep charcoal #0D0D0D with subtle grid. Style: professional developer editorial. No people. 4K, 16:9.",
+      "alt": "AI sales workflow pipeline diagram showing five developer-built stages from prospect discovery through research qualify outreach and follow-up using REST API endpoints",
+      "src": "/blog/add-ai-to-sales-workflow/img-01.webp"
+    },
+    {
+      "id": "add-ai-to-sales-workflow-img-02",
+      "index": 2,
+      "prompt": "Dark-mode comparison diagram. TWO columns. LEFT \"No-Code AI Sales Tools\": 4 red cards stacked vertically showing: \"Black-box AI output\", \"Text in a field (not typed JSON)\", \"Per-seat pricing\", \"4 separate integrations\". Each card has a subtle X icon. RIGHT \"Developer-Built API Pipeline\": 4 green cards: \"Control model + prompt + schema\", \"score: 87, tier: A (typed JSON)\", \"Platform fee, no per-seat\", \"One codebase, one integration\". Each card has a checkmark. Charcoal background, electric blue title accents. No people. 16:9.",
+      "alt": "Comparison of no-code AI sales tools versus developer-built AI sales workflow API showing advantages of structured JSON output, cost control, and unified integration",
+      "src": "/blog/add-ai-to-sales-workflow/img-02.webp"
+    },
+    {
+      "id": "add-ai-to-sales-workflow-img-03",
+      "index": 3,
+      "prompt": "Dark-mode data enrichment diagram. Two rows. TOP ROW: \"Prospect Record (sparse)\" showing a grey card with minimal fields: company name, size estimate, industry tag. Arrow pointing right. BOTTOM ROW: \"Enriched Record (after /sales/research)\" showing a glowing blue card with 5 filled sections: company_summary (green), recent_news (blue), tech_stack_signals (purple), pain_point_hypotheses (orange), conversation_hooks (yellow). Clean flat design, dark background. No people. 16:9.",
+      "alt": "AI sales workflow research enrichment showing sparse prospect record transformed to rich company intelligence with news, tech stack signals, pain points and conversation hooks",
+      "src": "/blog/add-ai-to-sales-workflow/img-03.webp"
+    },
+    {
+      "id": "add-ai-to-sales-workflow-img-04",
+      "index": 4,
+      "prompt": "Dark-mode n8n-style visual workflow diagram on charcoal background. 10 connected node cards in a horizontal row with connecting arrows. Each node shows: a small icon, a label, and a tiny endpoint name or tool name. Nodes in order: \"Schedule\" (clock icon) \u2192 \"POST /sales/prospect\" (shield icon, blue) \u2192 \"Poll Jobs\" (loop arrows icon, purple) \u2192 \"Split Batches\" (fork icon) \u2192 \"POST /sales/research\" (magnifier, blue) \u2192 \"POST /sales/qualify\" (gauge icon, green) \u2192 \"IF Tier A/B\" (diamond shape, yellow) \u2192 \"POST /sales/outreach\" (pencil, orange) \u2192 \"HubSpot Update\" (HubSpot orange circle) \u2192 \"Slack Notify\" (Slack purple hashtag). Clean, flat, dark design. No people. 16:9 wide.",
+      "alt": "n8n workflow diagram showing AI sales automation pipeline with ten connected nodes from schedule trigger through prospect research qualify outreach to HubSpot and Slack integration",
+      "src": "/blog/add-ai-to-sales-workflow/img-04.webp"
+    }
+  ],
+  "anthropic-api-sales-use-cases": [
+    {
+      "id": "anthropic-api-sales-use-cases-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode developer workspace illustration. Five glowing card panels arranged in a horizontal 5-card fan layout. Each card represents one Anthropic API sales automation. Card 1 (purple): \"/sales/research \u2014 Company Intel\" with a magnifier icon and JSON snippet. Card 2 (blue): \"/sales/outreach \u2014 Email Copy\" with pencil icon. Card 3 (orange): \"/sales/objections \u2014 Objection Handler\" with shield icon. Card 4 (green): \"/sales/icp \u2014 ICP Scoring\" with gauge icon. Card 5 (electric blue): \"/sales/proposal \u2014 Proposals\" with document icon. Each card shows a small Python code snippet. Background: deep charcoal, subtle hex grid. Anthropic-purple accent glow behind the cards. No people. 4K, 16:9.",
+      "alt": "Anthropic API sales automation use cases showing five endpoint cards for research, outreach, objection handling, ICP scoring, and proposal generation with Python code snippets",
+      "src": "/blog/anthropic-api-sales-use-cases/img-01.webp"
+    },
+    {
+      "id": "anthropic-api-sales-use-cases-img-02",
+      "index": 2,
+      "prompt": "Dark-mode two-panel comparison diagram. LEFT \"Raw Anthropic API\": shows a Python code block calling anthropic.messages.create() with a long free-form system prompt and an unstructured text blob response highlighted in red as \"hard to parse\". Subtitle: \"Weeks of prompt engineering per task\". RIGHT \"Sales AI API (BYOK)\": shows a clean Python POST call to /sales/qualify with a compact JSON body, and a coloured structured response: score, tier, reasoning highlighted in green/blue/white. Subtitle: \"One call, typed schema, same Anthropic key\". Connecting annotation: \"Your Anthropic key, your costs \u2014 same model under the hood\". Dark charcoal background. No people. 16:9.",
+      "alt": "Anthropic API sales automation comparison showing raw Claude API requiring prompt engineering versus Sales AI BYOK endpoint returning structured JSON schema for sales tasks",
+      "src": "/blog/anthropic-api-sales-use-cases/img-02.webp"
+    },
+    {
+      "id": "anthropic-api-sales-use-cases-img-03",
+      "index": 3,
+      "prompt": "Dark-mode annotated JSON card on charcoal background. A response block from /sales/objections is shown with four colour-coded sections, each with a label arrow. \"reframe\" field (purple arrow): \"Shifts 'expensive' to TCO/ROI framing\". \"response\" field (blue arrow): \"Direct answer, specific numbers\". \"proof_points\" (green arrow): \"['85% cost reduction at scale', ...]\". \"follow_up_question\" (yellow arrow): \"Uncovers the real blocker\". Clean flat design. Monospace code font. No people. 16:9.",
+      "alt": "Anthropic API sales objection handling response structure showing reframe, response, proof points, and follow-up question fields from POST /sales/objections endpoint",
+      "src": "/blog/anthropic-api-sales-use-cases/img-03.webp"
+    }
+  ],
+  "sales-prospecting-api-async": [
+    {
+      "id": "sales-prospecting-api-async-img-01",
+      "index": 1,
+      "prompt": "Dark-mode technical flow diagram illustration. A horizontal async job lifecycle shown as a timeline from left to right. Stage 1 (left, blue): \"POST /sales/prospect\" \u2014 a developer laptop icon with a small JSON payload badge. Instant response badge shows \"202 Accepted, job_id: job_01abc\". Stage 2 (middle, purple): A floating background queue box with \"job: running\" status indicator spinning. Below it, a clock shows \"45-90 seconds\". Stage 3 (right, green): Two completion paths branch. Top path: \"GET /jobs/{id} \u2192 status: completed\" (polling icon). Bottom path: \"Webhook: POST to your endpoint\" (webhook delivery icon). Both converge at a final results card showing \"25 prospects, ICP scored\". Background: very dark charcoal. Electric blue + green accents. Clean editorial developer style. No people. 4K, 16:9.",
+      "alt": "Async sales prospecting API lifecycle diagram showing POST request returning job ID, background queue processing, and dual completion paths via polling or webhook delivery",
+      "src": "/blog/sales-prospecting-api-async/img-01.webp"
+    },
+    {
+      "id": "sales-prospecting-api-async-img-02",
+      "index": 2,
+      "prompt": "Dark-mode two-scenario diagram side by side. LEFT \"Synchronous Approach (Fails)\": a timeline bar from 0s to 90s. A red \"TIMEOUT\" vertical line appears at 30s, cutting through the bar. Labels: \"0s: POST request sent\", \"30s: Gateway timeout\", \"45-90s: Where results would have been\". Underneath, a broken chain icon labelled \"Silent failure \u2014 no data returned\". RIGHT \"Async Pattern (Works)\": same 0-90s timeline. At 0s: \"POST \u2192 202 Accepted (job_id)\" green badge. A horizontal \"Background Processing\" bar runs from 0s to 75s in purple. At 75s: \"Webhook received\" or \"Poll returns completed\" green marker. No timeout line. Clean dark background. No people. 16:9.",
+      "alt": "Async sales prospecting API comparison showing synchronous timeout failure at 30 seconds versus async pattern with immediate 202 response and background processing to completion",
+      "src": "/blog/sales-prospecting-api-async/img-02.webp"
+    },
+    {
+      "id": "sales-prospecting-api-async-img-03",
+      "index": 3,
+      "prompt": "Dark-mode timeline chart. X-axis: time in seconds (0 to 90s). Y-axis: \"Poll interval\". Shows a bar chart with polling attempts at: 5s, 7.5s, 11s, 16s, 24s, 30s, 30s (capped). Each bar is labelled with \"Poll 1: queued\", \"Poll 2: running\", etc. At 75s mark, the bar turns green and shows \"Poll 7: COMPLETED\". Below the timeline, a label \"Total: 7 polls vs 90 polls at 1s fixed interval\". Clean dark background, cyan bars, green completion marker. No people. 16:9.",
+      "alt": "Exponential backoff polling timeline for async sales prospecting API showing 7 polls over 75 seconds versus 90 polls at fixed 1-second intervals with completion marker",
+      "src": "/blog/sales-prospecting-api-async/img-03.webp"
+    }
+  ],
+  "byok-ai-tool": [
+    {
+      "id": "byok-ai-tool-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode flat illustration. A large human hand holds a glowing golden API key (literal key shape, ornate, radiating soft light) pointed at a dark developer dashboard. The dashboard shows a split-screen: left side labelled \"Vendor Billed\" shows a rising red cost graph with a padlock icon; right side labelled \"BYOK\" shows a flat green cost line, a transparent cost breakdown chart, and a small checkmark shield. Background: deep charcoal (#0D0D0D) with subtle hexagonal grid texture. Accent colours: gold for the key, electric blue (#3B82F6) for the BYOK panel. No people, no faces. Professional editorial tech style. Ultra-detailed, 4K, 16:9.",
+      "alt": "BYOK AI tool concept showing developer holding API key to access bring your own key model with cost transparency versus vendor-billed AI subscription comparison",
+      "src": "/blog/byok-ai-tool/img-01.webp"
+    },
+    {
+      "id": "byok-ai-tool-img-02",
+      "index": 2,
+      "prompt": "Clean flat comparison infographic on dark navy background. Two large cards side by side. LEFT card (red tint, label \"Vendor-Billed Model\"): shows flow diagram: User \u2192 Tool (black box, shows \"markup $$$\") \u2192 AI Provider. A dotted line shows the user can't see costs. Small text shows \"opaque per-call fees\", \"AI credit bundles\", \"usage caps\". RIGHT card (green tint, label \"BYOK Model\"): shows flow diagram: User (holds key icon) \u2192 Tool (transparent box, labelled \"platform fee only\") \u2192 AI Provider (shows direct billing arrow back to User). Text: \"pay-as-you-go\", \"no markup\", \"full cost visibility\". Clean icons, professional flat design. No people. 16:9.",
+      "alt": "BYOK AI tool model comparison showing vendor-billed subscription with markup versus bring your own key model with direct AI provider billing and no hidden costs",
+      "src": "/blog/byok-ai-tool/img-02.webp"
+    },
+    {
+      "id": "byok-ai-tool-img-03",
+      "index": 3,
+      "prompt": "Dark-mode vertical flow diagram showing 4 numbered steps. Step 1 (lock icon, \"AES-256-GCM Encryption\"): small code block shows encrypted ciphertext in database. Step 2 (database icon with shield, \"RLS Isolation\"): SQL snippet showing CREATE POLICY. Step 3 (memory chip icon, \"In-Memory Decryption\"): timeline bar showing \"plaintext: 12ms\" in yellow, before and after in grey. Step 4 (invoice icon split into two, \"Separated Billing\"): two separate invoice boxes \u2014 \"AI Provider bills your key\" and \"Tool bills platform fee\". Connected by downward arrows with subtle glow. Dark charcoal background, electric blue accents. No people. 16:9.",
+      "alt": "BYOK AI tool technical flow showing four steps: AES-256-GCM key encryption, RLS tenant isolation, in-memory decryption, and separated billing between AI provider and platform",
+      "src": "/blog/byok-ai-tool/img-03.webp"
+    },
+    {
+      "id": "byok-ai-tool-img-04",
+      "index": 4,
+      "prompt": "Dark-mode bar chart. X-axis: \"Monthly API Calls\" showing 1,000 / 5,000 / 10,000 / 50,000. Y-axis: \"Monthly Cost ($)\". Two bar groups for each x-value: Red bars labelled \"Vendor-Billed\" climbing steeply (50, 250, 500, 2500). Green bars labelled \"BYOK (Direct Rates + Platform Fee)\" growing much more slowly (15, 35, 70, 250). Gap between them widens visibly. Clean dark background (#1A1A2E), minimal grid lines. Legend in top-left. No people. 16:9 wide format.",
+      "alt": "BYOK AI tool cost comparison chart showing vendor-billed AI subscription costs versus bring your own key direct API rates growing significantly cheaper at scale",
+      "src": "/blog/byok-ai-tool/img-04.webp"
+    },
+    {
+      "id": "byok-ai-tool-img-05",
+      "index": 5,
+      "prompt": "Dark-mode category grid. 3x2 card layout on charcoal background. Each card has an icon and two lines of text. Card 1 (sales funnel icon, electric blue): \"Sales Intelligence \u2014 Sales AI, 15 endpoints, AES-256-GCM\". Card 2 (code brackets icon, purple): \"Developer IDEs \u2014 JetBrains AI, Cursor, Factory\". Card 3 (cloud icon, cyan): \"Infrastructure \u2014 Cloudflare AI Gateway, Vercel AI Gateway\". Card 4 (robot icon, orange): \"Agent Platforms \u2014 LiteLLM, n8n, Make\". Card 5 (chat bubble icon, green): \"Chat Interfaces \u2014 300+ tools on BYOKList\". Card 6 (search icon, yellow): \"Find More \u2014 byoklist.com\". Clean card design, consistent spacing. No people. 16:9.",
+      "alt": "BYOK AI tool categories grid showing bring your own key tools for sales intelligence, developer IDEs, infrastructure, agent platforms, chat interfaces, and discovery directory",
+      "src": "/blog/byok-ai-tool/img-05.webp"
+    }
+  ],
+  "bring-your-own-key-llm-saas": [
+    {
+      "id": "bring-your-own-key-llm-saas-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode architectural diagram illustration. A multi-layer system architecture stack shown as horizontal floating planes stacked vertically with perspective. Top plane: \"Your SaaS Frontend / API\" (blue). Second plane: \"Workspace & Tenant Layer \u2014 Supabase RLS\" (purple). Third plane: \"Key Vault \u2014 AES-256-GCM Encrypted Storage\" (gold, glowing). Fourth plane: \"LLM Provider Layer \u2014 Anthropic / OpenAI\" (electric blue). Between plane 3 and 4, a small key icon shows \"user key, decrypted in memory only\" with a brief pulse animation hint. On the right side, two separate billing arrows flow down: one from plane 1 labelled \"Platform Fee \u2192 You\" and one from plane 4 labelled \"Token Costs \u2192 User\". Background: very dark charcoal. Ultra-detailed, professional, 4K, 16:9.",
+      "alt": "BYOK LLM SaaS architecture diagram showing layered system with frontend, Supabase RLS tenant isolation, AES-256-GCM key vault, and LLM provider layer with separated billing flows",
+      "src": "/blog/bring-your-own-key-llm-saas/img-01.webp"
+    },
+    {
+      "id": "bring-your-own-key-llm-saas-img-02",
+      "index": 2,
+      "prompt": "Dark navy background. Three-column comparison grid showing \"Problem\" (red), \"Vendor-Billed Result\" (amber), \"BYOK Result\" (green). Row 1: \"Unpredictable costs\" \u2192 \"Absorb heavy users, throttle or overprice\" \u2192 \"User pays their own Anthropic bill\". Row 2: \"Pricing complexity\" \u2192 \"AI credit tiers, overage fees\" \u2192 \"One flat platform fee\". Row 3: \"Developer trust\" \u2192 \"Scepticism about markups\" \u2192 \"Full cost transparency via API console\". Clean grid design, icons for each row. No people. 16:9.",
+      "alt": "BYOK LLM SaaS pricing model advantages showing how bring your own key solves unpredictable costs, pricing complexity, and developer trust versus vendor-billed model",
+      "src": "/blog/bring-your-own-key-llm-saas/img-02.webp"
+    },
+    {
+      "id": "bring-your-own-key-llm-saas-img-03",
+      "index": 3,
+      "prompt": "Dark-mode technical diagram. Horizontal encryption pipeline. Input: \"Anthropic API Key (plaintext)\" shown as green text. Arrow right to \"AES-256-GCM Encrypt\" box (gold shield, shows: nonce (12 bytes) + master key). Arrow right to \"Encrypted Ciphertext\" shown as red indecipherable hex string. Arrow down to \"Supabase Database\" cylinder with lock icon. Small separate box below: \"Master key stored in environment variable ONLY \u2014 never in DB\". Clean dark background, precise flat design. No people. 16:9.",
+      "alt": "AES-256-GCM encryption flow for BYOK LLM SaaS showing Anthropic API key encrypted with master key and nonce stored in Supabase database with environment variable key management",
+      "src": "/blog/bring-your-own-key-llm-saas/img-03.webp"
+    },
+    {
+      "id": "bring-your-own-key-llm-saas-img-04",
+      "index": 4,
+      "prompt": "Dark-mode dual billing flow diagram. Top center: \"Your SaaS Platform\" box. Two arrows flow down, one left and one right. LEFT ARROW to \"Stripe\" (label: \"Platform subscription fee \u2192 Platform bank account\"). RIGHT ARROW to \"Anthropic/OpenAI API\" (label: \"Token costs \u2192 billed to USER's API account\"). Under the right arrow, a small note: \"You never see token costs. Anthropic bills user directly.\" Clean separation visual, no overlap between the two billing flows. Dark navy background. Professional flat design. No people. 16:9.",
+      "alt": "BYOK LLM SaaS billing separation diagram showing platform subscription fee going to Stripe and LLM token costs billed directly to user's Anthropic or OpenAI account separately",
+      "src": "/blog/bring-your-own-key-llm-saas/img-04.webp"
+    },
+    {
+      "id": "bring-your-own-key-llm-saas-img-05",
+      "index": 5,
+      "prompt": "Dark-mode checklist card on charcoal background. Title: \"BYOK Architecture Checklist\" in white. 8 items in two columns, each with a checkbox (green checkmark for \"do\" items, red X for \"don't\" items). Examples: \u2705 \"Encrypt keys with AES-256-GCM before DB write\" | \u274c \"Log decrypted key in error messages\" | \u2705 \"Use Supabase RLS for tenant isolation\" | \u274c \"Filter by workspace_id in app code only\" | \u2705 \"Decrypt in memory, discard immediately\" | \u274c \"Cache plaintext keys for performance\" | \u2705 \"Show users their token usage (not the actual key)\" | \u274c \"Use same master key for all tenants\". Clean card design, two-column grid, subtle code-style font. No people. 16:9.",
+      "alt": "BYOK LLM SaaS architecture checklist showing correct practices like AES-256-GCM encryption and Supabase RLS versus mistakes like logging decrypted keys or skipping tenant isolation",
+      "src": "/blog/bring-your-own-key-llm-saas/img-05.webp"
+    }
+  ],
+  "claude-api-sales-automation": [
+    {
+      "id": "claude-api-sales-automation-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode \"after 10,000 API calls\" editorial illustration. A developer's terminal fills the frame showing a dense log of structured JSON responses scrolling past \u2014 highlighted lines show: \"score: 87\", \"tier: A\", \"tokens_used: 312\", \"duration_ms: 1840\". In the top corner, a small counter reads \"10,847 calls\". A sticky note overlays: \"3 lessons the hello-world didn't teach me\". Background: deep charcoal with faint code texture. Accent: cyan for key names, green for values, electric blue for the counter. Style: editorial, experienced-developer tone, no polish or marketing. No people. 4K, 16:9.",
+      "alt": "Claude API sales automation production terminal showing 10000 API calls with structured JSON output for lead qualification score tier tokens used and duration",
+      "src": "/blog/claude-api-sales-automation/img-01.webp"
+    },
+    {
+      "id": "claude-api-sales-automation-img-02",
+      "index": 2,
+      "prompt": "Dark-mode split code comparison. LEFT \"Free-Form Response (Breaks Pipeline)\": four terminal snippets stacked, each showing a different format for the same \"score a lead\" request. Each has a red X badge. Formats vary wildly \u2014 one has \"85/100\", one has \"Score: 72\", one has plain prose, one has nothing parseable. A broken pipeline icon below. RIGHT \"Structured Output (Always Parses)\": one clean JSON block showing {\"score\": 87, \"tier\": \"A\", \"reasoning\": \"...\"} with a green checkmark. A small Python line: `result.score \u2192 87 (int)`. Charcoal background, red accents left, green accents right. No people. 16:9.",
+      "alt": "Claude API sales automation comparison showing free-form text output inconsistent formats versus structured output guaranteed JSON schema with score tier reasoning fields",
+      "src": "/blog/claude-api-sales-automation/img-02.webp"
+    },
+    {
+      "id": "claude-api-sales-automation-img-03",
+      "index": 3,
+      "prompt": "Dark-mode horizontal stacked bar chart. X-axis: \"Monthly cost ($)\" from $0 to $250. Five bars, one per usage tier: \"100 leads/mo\" ($2.30), \"500 leads/mo\" ($11.50), \"1,000 leads/mo\" ($23), \"5,000 leads/mo\" ($115), \"10,000 leads/mo\" ($230). Each bar split into three coloured sections: purple (qualification), blue (research), orange (outreach). Second row of bars shows same tiers with Batch API 50% discount in green. Clean dark background, legend in top right. \"Based on Anthropic Sonnet 4.6 rates\" note at bottom. No people. 16:9.",
+      "alt": "Claude API sales automation token cost breakdown chart showing monthly costs at 100 to 10000 leads for qualification research and outreach with Anthropic Sonnet 4.6 rates",
+      "src": "/blog/claude-api-sales-automation/img-03.webp"
+    }
+  ],
+  "clay-apollo-alternative-developers": [
+    {
+      "id": "clay-apollo-alternative-developers-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode comparison illustration. Three-column layout on deep charcoal. LEFT column (labelled \"Apollo\" in blue): A large database cylinder icon with \"275M contacts\" and a per-seat price tag ($99/user/month). Two limitation badges: \"No raw API (under $5K/yr)\" and \"Seat-based pricing\". MIDDLE column (labelled \"Clay\" in orange): A spreadsheet grid icon with \"150+ providers\" and credit counter showing \"$149-800/month\". Two badges: \"Credit markups\" and \"No REST API layer\". RIGHT column (labelled \"Sales AI\" in electric blue, larger, highlighted): A clean REST endpoint diagram with code snippet. Three green badges: \"15 structured endpoints\", \"BYOK \u2014 your Anthropic key\", \"Developer-first\". Background charcoal with subtle grid. No people. 4K, 16:9.",
+      "alt": "Clay Apollo alternative for developers comparison showing Apollo database per-seat pricing versus Clay credit model versus Sales AI BYOK REST API developer-first alternative",
+      "src": "/blog/clay-apollo-alternative-developers/img-01.webp"
+    },
+    {
+      "id": "clay-apollo-alternative-developers-img-02",
+      "index": 2,
+      "prompt": "Dark-mode architecture diagram. THREE rows, each showing what the tool \"is\". ROW 1 (Apollo): Database cylinder icon \u2192 UI icon \u2192 Email sequencer icon. Label: \"Contact database with bundled outreach UI\". ROW 2 (Clay): 150+ provider logos (small icons) \u2192 Spreadsheet grid icon \u2192 CRM/sequencer arrow. Label: \"Enrichment orchestrator \u2014 queries other databases, outputs to your stack\". ROW 3 (Sales AI API): Developer laptop icon \u2192 REST endpoint box \u2192 Typed JSON response card. Label: \"15 AI skills callable over HTTP. Bring your own Anthropic key.\". Clean dark design, consistent icon style. No people. 16:9.",
+      "alt": "Architecture diagram comparing Apollo contact database with UI, Clay enrichment orchestrator with 150 providers, and Sales AI API developer REST endpoints with BYOK",
+      "src": "/blog/clay-apollo-alternative-developers/img-02.webp"
+    },
+    {
+      "id": "clay-apollo-alternative-developers-img-03",
+      "index": 3,
+      "prompt": "Dark-mode bar chart comparing three tools at three usage volumes. X-axis: \"Monthly prospect volume\" \u2014 500, 5,000, 25,000. Y-axis: \"Monthly cost ($)\" 0\u2013$3,000. Three bar groups. BLUE bars \"Apollo (5-user team, Professional)\": $395/mo flat (per-seat). ORANGE bars \"Clay Pro + outreach tool\": $349/mo + usage credits, growing to ~$1,500 at 25K. GREEN bars \"Sales AI API (BYOK)\": starts ~$30/mo, grows slowly (mostly LLM costs at ~$0.004/call), stays flat at ~$80 even at 25K. Clean legend. Dark background. No people. 16:9.",
+      "alt": "Cost comparison chart of Clay Apollo alternative showing Apollo per-seat pricing, Clay credit model, and Sales AI BYOK API costs at 500, 5000, and 25000 monthly prospect volume",
+      "src": "/blog/clay-apollo-alternative-developers/img-03.webp"
+    },
+    {
+      "id": "clay-apollo-alternative-developers-img-04",
+      "index": 4,
+      "prompt": "Dark-mode styled comparison table. Three columns: Apollo, Clay+tool, Sales AI API. Five rows with values: \"Monthly fee (5 users)\", \"API access cost\", \"AI token cost (5K leads/mo)\", \"Total monthly\", \"Scales with volume?\". Each cell filled with numbers or Yes/No. Apollo column is red-tinted. Clay column is amber-tinted. Sales AI API column is green-tinted. Clean professional table design on charcoal background. No people. 16:9 wide.",
+      "alt": "Cost comparison table of Clay Apollo alternative for developers showing Apollo per-seat enterprise API costs versus Clay credits versus Sales AI BYOK flat platform fee",
+      "src": "/blog/clay-apollo-alternative-developers/img-04.webp"
+    }
+  ],
+  "ai-lead-qualification-api": [
+    {
+      "id": "ai-lead-qualification-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode developer dashboard illustration. A large terminal window in the centre shows a curl command hitting /sales/qualify. Below the curl command, a glowing JSON response appears with highlighted fields: \"score: 87\" in bright green, \"tier: A\" in electric blue pill badge, \"reasoning\" in white text block, \"recommended_next_action\" in yellow text. On the left side, a simplified CRM pipeline diagram shows leads flowing in as grey dots and coming out colour-coded: green (A/B tier), orange (C tier), grey (D tier). Background: very dark charcoal. Accent: electric blue, green. Clean editorial tech illustration style. No people. 4K, 16:9.",
+      "alt": "AI lead qualification API dashboard showing POST /sales/qualify response with score 87, Tier A rating, reasoning, and recommended next action fields in developer terminal",
+      "src": "/blog/ai-lead-qualification-api/img-01.webp"
+    },
+    {
+      "id": "ai-lead-qualification-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode side-by-side comparison diagram. LEFT panel (red/amber): \"Rule-Based Scoring\" \u2014 a messy flowchart with 8 decision boxes, crossed arrows, conflict badges, and a broken chain icon at the bottom. Subtitle: \"200 rules, breaks constantly\". RIGHT panel (green/blue): \"AI Lead Qualification API\" \u2014 a single clean box labelled \"/sales/qualify\" with one input arrow (lead data) and one output arrow (structured score + reasoning). Subtitle: \"One call. Context-aware. Self-adjusting.\" Dark background. No people. 16:9.",
+      "alt": "AI lead qualification API comparison showing complex rule-based scoring system versus single API call that returns intelligent score, tier, reasoning and next action",
+      "src": "/blog/ai-lead-qualification-api/img-02.webp"
+    },
+    {
+      "id": "ai-lead-qualification-api-img-03",
+      "index": 3,
+      "prompt": "Dark-mode code annotation diagram. A JSON response block is shown with coloured annotation arrows pointing to specific fields. Arrow from \"score: 91\" \u2192 green annotation box: \"Numeric ICP fit \u2014 route above 70 to Tier 1 reps\". Arrow from \"tier: A\" \u2192 blue badge: \"CRM sequence trigger\". Arrow from \"reasoning:\" \u2192 yellow box: \"Log to CRM note field \u2014 context for rep\". Arrow from \"recommended_next_action:\" \u2192 orange box: \"Send to rep via Slack\". Arrow from \"disqualifiers: []\" \u2192 grey box: \"Empty = no blockers\". Clean dark background, monospace code font, annotation arrows in matching accent colours. No people. 16:9.",
+      "alt": "AI lead qualification API response annotated showing how score, tier, reasoning, recommended next action, and disqualifiers fields map to CRM automation workflows",
+      "src": "/blog/ai-lead-qualification-api/img-03.webp"
+    },
+    {
+      "id": "ai-lead-qualification-api-img-04",
+      "index": 4,
+      "prompt": "Dark-mode horizontal pipeline diagram. 5 nodes connected left to right by arrows with labels above. Node 1 (HubSpot icon box): \"New Contact Created\". Arrow labelled \"webhook\". Node 2 (code bracket icon): \"Build lead description string\". Arrow labelled \"API call\". Node 3 (shield/AI icon): \"/sales/qualify \u2014 AI scores lead\". Arrow labelled \"structured JSON\". Node 4 (database icon): \"Write score + tier + reasoning to CRM fields\". Arrow labelled \"conditional routing\". Node 5 (fork icon splitting into 3): \"A: Assign to top rep + Slack\" / \"B: Add to sequence\" / \"C/D: Nurture\". Clean dark background, electric blue accent. No people. 16:9.",
+      "alt": "AI lead qualification API CRM integration flow showing HubSpot webhook to POST /sales/qualify to score tier reasoning written back to CRM with routing logic",
+      "src": "/blog/ai-lead-qualification-api/img-04.webp"
+    }
+  ],
+  "sales-ai-api": [
+    {
+      "id": "sales-ai-api-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode developer workspace flat illustration. A large glowing API endpoint diagram floats in the centre, showing 15 labelled hexagonal nodes arranged in a circuit-board pattern, each node labelled with endpoint names like /sales/qualify, /sales/research, /sales/outreach in clean monospace font. Connecting lines pulse with soft cyan and electric-blue light. A minimalist code editor panel occupies the right third showing Python syntax with green highlighted JSON response. Background is deep charcoal #0D0D0D with subtle grid lines. Brand accent colour: electric blue #3B82F6. Style: professional tech editorial, not abstract. No people. Ultra-detailed, 4K quality, wide 16:9 aspect ratio.",
+      "alt": "Sales AI API architecture diagram showing 15 REST endpoints for lead qualification, outreach, and prospect research connected in a circuit-board layout on a dark developer dashboard",
+      "src": "/blog/sales-ai-api/img-01.webp"
+    },
+    {
+      "id": "sales-ai-api-img-02",
+      "index": 2,
+      "prompt": "Clean infographic illustration on deep navy background. Two side-by-side comparison panels. Left panel labelled \"Generic LLM API\" shows a raw unstructured text blob response in a code terminal, messy and unhighlighted. Right panel labelled \"Sales AI API\" shows clean, structured JSON with colour-coded keys: score in green, tier in blue, reasoning in white, recommended_next_action in yellow. Arrow pointing from left to right with label \"Structure + Sales Context\". Minimal flat design, professional, no people. 16:9.",
+      "alt": "Comparison of generic LLM API raw text response versus structured Sales AI API JSON response showing score, tier, reasoning and recommended next action fields",
+      "src": "/blog/sales-ai-api/img-02.webp"
+    },
+    {
+      "id": "sales-ai-api-img-03",
+      "index": 3,
+      "prompt": "Horizontal funnel diagram on a dark charcoal background (#1A1A2E). The funnel has four sections from left to right, each with a different accent colour. Section 1 (purple): \"Prospecting & Intelligence\" with 5 endpoint pill badges below: /research, /icp, /competitors, /prospect, /contacts. Section 2 (blue): \"Outreach & Sequencing\" with 4 endpoint pills: /outreach, /followup, /leads, /quick. Section 3 (green): \"Deal Execution\" with 5 pills: /qualify, /prep, /proposal, /objections. Section 4 (orange): \"Reporting\" with 2 pills: /report, /report-pdf. Each pill has a small API icon prefix. Clean, sharp, editorial tech design. No people. 16:9 wide.",
+      "alt": "Sales AI API endpoint map showing 15 REST endpoints grouped across the sales funnel: prospecting and intelligence, outreach and sequencing, deal execution, and reporting",
+      "src": "/blog/sales-ai-api/img-03.webp"
+    },
+    {
+      "id": "sales-ai-api-img-04",
+      "index": 4,
+      "prompt": "Dark-mode UI mockup showing an email sequence builder. Three email cards stacked vertically with connecting vertical timeline line between them. Card 1 (Step 1, Day 0): subject line and preview text visible. Card 2 (Step 2, Day 3): \"Follow-up\" badge. Card 3 (Step 3, Day 10): \"Re-engage\" badge. Each card shows a code snippet overlay on hover: \"POST /sales/followup\" in cyan monospace. A small JSON badge in the top-right corner shows {\"steps\": 3, \"channel\": \"email\"}. Background: very dark navy. Accent: electric blue. No people. Clean flat illustration style, 16:9.",
+      "alt": "Sales AI API outreach sequencing endpoint showing automated multi-step email follow-up generation with POST /sales/followup REST API call",
+      "src": "/blog/sales-ai-api/img-04.webp"
+    },
+    {
+      "id": "sales-ai-api-img-05",
+      "index": 5,
+      "prompt": "Dark UI card component mockup. A \"Lead Qualification Result\" card showing: a large circular score gauge reading \"87\" in bold white with a green arc around it, a tier badge showing \"Tier A\" in green pill. Below that, two sections side by side: \"Reasoning\" (text block with green checkmark icon) and \"Disqualifiers\" (empty state with grey dash). Bottom bar shows \"Recommended Next Action: Schedule discovery call within 48 hours\" in yellow text with an arrow icon. Background: dark charcoal. Design feels like a developer dashboard card component, not a sales tool. No people. 16:9 flat illustration.",
+      "alt": "Sales AI API lead qualification result card showing score of 87, Tier A rating, reasoning summary and recommended next action from POST /sales/qualify endpoint",
+      "src": "/blog/sales-ai-api/img-05.webp"
+    },
+    {
+      "id": "sales-ai-api-img-06",
+      "index": 6,
+      "prompt": "Clean technical flow diagram on dark charcoal background. Horizontal left-to-right architecture showing 4 nodes connected by arrows: Node 1 (developer laptop icon, label \"Your Code\") \u2192 Node 2 (shield icon with lock, label \"Sales AI API \u2014 AES-256-GCM Key Vault\") \u2192 Node 3 (Anthropic logo-style purple hexagon, label \"Anthropic API \u2014 Your Key Used Here\") \u2192 Node 4 (database cylinder, label \"Anthropic Bills YOUR Account\"). A separate branch from Node 2 has an arrow downward to a small invoice icon labelled \"Sales AI Bills Platform Fee Only\". Clean flat vector illustration, electric blue accent (#3B82F6), no gradients except subtle glow on shield. No people. 16:9.",
+      "alt": "BYOK sales AI API architecture diagram showing how Anthropic API key flows from developer code through AES-256-GCM encrypted vault to Anthropic billing without vendor markup",
+      "src": "/blog/sales-ai-api/img-06.webp"
+    },
+    {
+      "id": "sales-ai-api-img-07",
+      "index": 7,
+      "prompt": "Vertical step-by-step technical diagram on dark background. 4 steps shown as connected horizontal timeline with numbered circular badges. Step 1 (cyan circle, \"1\"): shows code snippet \"POST /sales/prospect \u2192 {job_id: 'job_01abc'}\". Step 2 (blue circle, \"2\"): shows \"GET /jobs/job_01abc \u2192 {status: 'running'}\". Step 3 (purple circle, \"3\"): shows \"GET /jobs/job_01abc \u2192 {status: 'completed', result: {...}}\". Step 4 (green circle, \"4\"): shows webhook icon with label \"OR: Receive webhook on completion\". Clean dark-mode developer illustration. Monospace code fonts. No people. 16:9.",
+      "alt": "Sales AI API async job engine flow diagram showing four-step pattern: submit prospect job, poll for running status, receive completed results, or configure webhook delivery",
+      "src": "/blog/sales-ai-api/img-07.webp"
+    },
+    {
+      "id": "sales-ai-api-img-08",
+      "index": 8,
+      "prompt": "Dark-mode code editor mockup with a horizontal tab bar at the top showing 7 language tabs: \"cURL\", \"Python\", \"TypeScript\", \"JavaScript\", \"Go\", \"PHP\", \"Ruby\". The Python tab is active (highlighted in electric blue underline). The code panel below shows Python syntax with: import requests at top, a POST call to the API, and a two-line print statement showing data[\"score\"] and data[\"tier\"]. Green syntax highlighting for strings, blue for keywords. Authentic VS Code-style editor look. No people. 16:9 flat design.",
+      "alt": "Sales AI API code snippets showing Python, TypeScript, Go, PHP and Ruby language support for REST API calls to /sales/qualify endpoint in dark mode code editor",
+      "src": "/blog/sales-ai-api/img-08.webp"
+    },
+    {
+      "id": "sales-ai-api-img-09",
+      "index": 9,
+      "prompt": "Clean dark-mode system integration diagram. Three integration patterns shown as separate horizontal rows. Row 1 \"CRM Webhook Pattern\": HubSpot icon \u2192 arrow \u2192 Sales AI API box (/sales/qualify) \u2192 arrow \u2192 CRM field update icon, with labels at each step. Row 2 \"Meeting Prep Pattern\": Calendly icon \u2192 arrow \u2192 /sales/research + /sales/prep box \u2192 arrow \u2192 Slack notification icon. Row 3 \"Async Batch Pattern\": Cron clock icon \u2192 arrow \u2192 /sales/prospect (async) box \u2192 arrow \u2192 Job queue icon \u2192 arrow \u2192 Webhook delivery icon. Each row has a different accent colour (blue, green, orange). Clean flat vector style, dark background. No people. 16:9.",
+      "alt": "Sales AI API integration patterns diagram showing CRM webhook qualification, meeting prep automation, and async batch prospecting workflows wired into HubSpot, Calendly, and Slack",
+      "src": "/blog/sales-ai-api/img-09.webp"
+    },
+    {
+      "id": "sales-ai-api-img-10",
+      "index": 10,
+      "prompt": "Dark security-themed infographic with 4 vertical pillars side by side. Pillar 1 (shield icon, label \"AES-256-GCM Encryption\"): text \"Keys encrypted before database write. Plaintext exists in memory only during API call.\" Pillar 2 (database icon with lock, label \"RLS Isolation\"): \"Every tenant table protected by Supabase row-level security policies.\" Pillar 3 (key icon with scope, label \"Scoped API Keys\"): \"Mint keys limited to specific endpoints. Rotate without touching other integrations.\" Pillar 4 (scroll icon, label \"Audit Logs\"): \"Key creation, rotation, and workspace changes logged with actor, timestamp, IP.\" Background: very dark navy with subtle circuit-board texture. Icon colour: electric blue. No people. 16:9.",
+      "alt": "Sales AI API security architecture showing four pillars: AES-256-GCM key encryption, Supabase row-level security isolation, scoped API keys per endpoint, and full audit logging",
+      "src": "/blog/sales-ai-api/img-10.webp"
+    }
+  ]
+}
