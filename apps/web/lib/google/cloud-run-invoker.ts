@@ -1,5 +1,5 @@
 import { getVercelOidcToken } from "@vercel/oidc";
-import { ExternalAccountClient, GoogleAuth } from "google-auth-library";
+import { GoogleAuth } from "google-auth-library";
 
 type ServiceAccountJson = {
   client_email?: string;
@@ -13,6 +13,19 @@ type WifConfig = {
   serviceAccountEmail: string;
   poolId: string;
   providerId: string;
+};
+
+type StsTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  issued_token_type?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type IamGenerateIdTokenResponse = {
+  token?: string;
 };
 
 let cachedAuthHeader: string | null = null;
@@ -116,39 +129,57 @@ function getWifConfigFromEnv(): WifConfig | null {
 }
 
 async function mintIdTokenHeaderFromWif(audience: string, config: WifConfig): Promise<string | null> {
-  const authClient = ExternalAccountClient.fromJSON({
-    type: "external_account",
-    audience: `//iam.googleapis.com/projects/${config.projectNumber}/locations/global/workloadIdentityPools/${config.poolId}/providers/${config.providerId}`,
+  const subjectToken = await getVercelOidcToken();
+  const stsAudience = `//iam.googleapis.com/projects/${config.projectNumber}/locations/global/workloadIdentityPools/${config.poolId}/providers/${config.providerId}`;
+  const stsBody = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+    audience: stsAudience,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
     subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
-    token_url: "https://sts.googleapis.com/v1/token",
-    service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${config.serviceAccountEmail}:generateAccessToken`,
-    subject_token_supplier: {
-      getSubjectToken: async () => getVercelOidcToken(),
+    subject_token: subjectToken,
+  });
+
+  const stsResp = await fetch("https://sts.googleapis.com/v1/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-  } as any);
-  if (!authClient) {
-    throw new Error("Failed to initialize external account auth client");
+    body: stsBody.toString(),
+  });
+
+  const stsJson = (await stsResp.json()) as StsTokenResponse;
+  if (!stsResp.ok || !stsJson.access_token) {
+    throw new Error(
+      `STS exchange failed (${stsResp.status}): ${stsJson.error_description || stsJson.error || "unknown error"}`
+    );
   }
 
-  const auth = new GoogleAuth({ authClient });
-  const client = await auth.getIdTokenClient(audience);
-  const reqHeaders = await client.getRequestHeaders();
+  const iamResp = await fetch(
+    `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(config.serviceAccountEmail)}:generateIdToken`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stsJson.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        audience,
+        includeEmail: true,
+      }),
+    }
+  );
 
-  let headerValue: string | undefined;
-  if (typeof (reqHeaders as any).get === "function") {
-    headerValue =
-      (reqHeaders as any).get("Authorization") ||
-      (reqHeaders as any).get("authorization") ||
-      undefined;
-  } else {
-    headerValue =
-      (reqHeaders as Record<string, string | undefined>).Authorization ||
-      (reqHeaders as Record<string, string | undefined>).authorization;
+  const iamJson = (await iamResp.json()) as IamGenerateIdTokenResponse & {
+    error?: { message?: string };
+  };
+  if (!iamResp.ok || !iamJson.token) {
+    throw new Error(
+      `IAM generateIdToken failed (${iamResp.status}): ${iamJson.error?.message || "unknown error"}`
+    );
   }
 
-  if (!headerValue) return null;
-
-  const token = headerValue.replace(/^Bearer\s+/i, "");
+  const token = iamJson.token;
   const expMs = decodeJwtExpMs(token);
   cachedAuthHeader = normalizeBearer(token);
   cachedExpiresAtMs = expMs || Date.now() + 50 * 60 * 1000;
