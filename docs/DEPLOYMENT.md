@@ -19,6 +19,13 @@ Use managed Redis and copy TLS URI into `REDIS_URL` for both API and worker.
 ## 4) Vercel
 - Import repo with root `sales-ai/apps/web` (or use `sales-ai/vercel.json`).
 - Add env vars from `.env.vercel.example`.
+- For private Cloud Run API invocation from Vercel, set these env vars in Vercel:
+  - `SALES_API_URL`
+  - `GCP_PROJECT_NUMBER`
+  - `GCP_SERVICE_ACCOUNT_EMAIL`
+  - `GCP_WORKLOAD_IDENTITY_POOL_ID`
+  - `GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID`
+- Do not rely on a manually pasted `SALES_API_BEARER_TOKEN` in production (it expires and causes 403).
 
 ## 5) Health checks
 - API health: `/api/v1/health`

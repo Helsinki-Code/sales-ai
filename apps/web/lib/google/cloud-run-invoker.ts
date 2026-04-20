@@ -22,6 +22,10 @@ function normalizeBearer(rawToken: string): string {
   return rawToken.toLowerCase().startsWith("bearer ") ? rawToken : `Bearer ${rawToken}`;
 }
 
+function extractTokenFromBearer(rawToken: string): string {
+  return rawToken.replace(/^Bearer\s+/i, "").trim();
+}
+
 function decodeJwtExpMs(token: string): number {
   try {
     const parts = token.split(".");
@@ -67,10 +71,37 @@ function getServiceAccountJsonFromEnv(): ServiceAccountJson | null {
 }
 
 function getWifConfigFromEnv(): WifConfig | null {
-  const projectNumber = process.env.GCP_PROJECT_NUMBER?.trim();
-  const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL?.trim();
-  const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID?.trim();
-  const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID?.trim();
+  const projectNumber =
+    process.env.GCP_PROJECT_NUMBER?.trim() ||
+    process.env.GOOGLE_CLOUD_PROJECT_NUMBER?.trim() ||
+    process.env.GOOGLE_PROJECT_NUMBER?.trim();
+
+  const serviceAccountEmail =
+    process.env.GCP_SERVICE_ACCOUNT_EMAIL?.trim() ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() ||
+    process.env.SALES_API_INVOKER_SERVICE_ACCOUNT?.trim();
+
+  let poolId =
+    process.env.GCP_WORKLOAD_IDENTITY_POOL_ID?.trim() ||
+    process.env.GCP_WIF_POOL_ID?.trim() ||
+    process.env.GOOGLE_WORKLOAD_IDENTITY_POOL_ID?.trim();
+
+  let providerId =
+    process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID?.trim() ||
+    process.env.GCP_WIF_PROVIDER_ID?.trim() ||
+    process.env.GOOGLE_WORKLOAD_IDENTITY_POOL_PROVIDER_ID?.trim();
+
+  const providerResource =
+    process.env.GCP_WORKLOAD_IDENTITY_PROVIDER?.trim() ||
+    process.env.GCP_WIF_PROVIDER_RESOURCE?.trim();
+
+  if (providerResource && (!poolId || !providerId)) {
+    const match = providerResource.match(/workloadIdentityPools\/([^/]+)\/providers\/([^/]+)/i);
+    if (match) {
+      poolId = poolId || match[1];
+      providerId = providerId || match[2];
+    }
+  }
 
   if (!projectNumber || !serviceAccountEmail || !poolId || !providerId) {
     return null;
@@ -153,11 +184,6 @@ async function mintIdTokenHeader(audience: string, credentials: ServiceAccountJs
 }
 
 export async function getUpstreamAuthorizationHeader(audience: string): Promise<string | null> {
-  const staticBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
-  if (staticBearer) {
-    return normalizeBearer(staticBearer);
-  }
-
   const now = Date.now();
   if (cachedAuthHeader && cachedExpiresAtMs - 60_000 > now) {
     return cachedAuthHeader;
@@ -173,7 +199,25 @@ export async function getUpstreamAuthorizationHeader(audience: string): Promise<
   }
 
   const credentials = getServiceAccountJsonFromEnv();
-  if (!credentials) return null;
+  if (credentials) {
+    try {
+      return await mintIdTokenHeader(audience, credentials);
+    } catch (error) {
+      console.error("Failed to mint Cloud Run ID token via service account JSON", error);
+    }
+  }
 
-  return mintIdTokenHeader(audience, credentials);
+  const staticBearer = process.env.SALES_API_BEARER_TOKEN?.trim();
+  if (!staticBearer) return null;
+
+  const staticToken = extractTokenFromBearer(staticBearer);
+  const staticExpMs = decodeJwtExpMs(staticToken);
+
+  if (staticExpMs && staticExpMs - 60_000 <= now) {
+    // Ignore expired manually pasted identity tokens so WIF/SA flows can take over.
+    console.warn("Ignoring expired SALES_API_BEARER_TOKEN; configure WIF env vars for keyless auth.");
+    return null;
+  }
+
+  return normalizeBearer(staticBearer);
 }
