@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAuth } from "@/lib/api/resolve-auth";
 import { getUpstreamAuthorizationHeader } from "@/lib/google/cloud-run-invoker";
+import { ensureBillingActiveForSalesAuth } from "@/lib/billing/status";
 
 const SALES_API_URL = process.env.SALES_API_URL || "https://sales-ai-api-468526005573.asia-south1.run.app";
 
@@ -80,6 +81,11 @@ export async function POST(
         { success: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
         { status: 401 }
       );
+    }
+
+    const billingBlockResponse = await ensureBillingActiveForSalesAuth(auth, request);
+    if (billingBlockResponse) {
+      return billingBlockResponse;
     }
 
     // Parse request body

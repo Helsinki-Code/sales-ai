@@ -15,6 +15,17 @@ create type public.environment_type as enum ('local', 'staging', 'production');
 create type public.credential_status as enum ('active', 'inactive', 'revoked');
 create type public.webhook_status as enum ('active', 'paused');
 create type public.usage_status as enum ('success', 'failed');
+create type public.billing_status as enum (
+  'not_started',
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+  'unpaid',
+  'incomplete',
+  'incomplete_expired',
+  'paused'
+);
 
 -- Utility functions
 create or replace function public.set_updated_at()
@@ -406,6 +417,37 @@ create trigger trg_webhook_endpoints_updated_at
 before update on public.webhook_endpoints
 for each row execute function public.set_updated_at();
 
+-- Stripe billing (org-scoped)
+create table public.org_billing (
+  org_id uuid primary key references public.orgs(id) on delete cascade,
+  stripe_customer_id text unique,
+  stripe_subscription_id text unique,
+  stripe_price_id text,
+  billing_status public.billing_status not null default 'not_started',
+  trial_start_at timestamptz,
+  trial_end_at timestamptz,
+  current_period_end timestamptz,
+  cancel_at_period_end boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger trg_org_billing_updated_at
+before update on public.org_billing
+for each row execute function public.set_updated_at();
+
+create table public.billing_webhook_events (
+  id bigserial primary key,
+  event_id text not null unique,
+  event_type text not null,
+  org_id uuid references public.orgs(id) on delete set null,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  payload jsonb not null default '{}'::jsonb,
+  processed_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
 -- Immutability triggers
 create trigger trg_orgs_immutable_created_at
 before update on public.orgs
@@ -436,6 +478,11 @@ create index idx_usage_events_api_key_created on public.usage_events(api_key_id,
 create index idx_usage_daily_rollups_workspace_date on public.usage_daily_rollups(workspace_id, usage_date desc);
 create index idx_audit_logs_org_created on public.audit_logs(org_id, created_at desc);
 create index idx_webhooks_workspace_status on public.webhook_endpoints(workspace_id, status);
+create index idx_org_billing_status on public.org_billing(org_id, billing_status);
+create index idx_org_billing_customer on public.org_billing(stripe_customer_id);
+create index idx_org_billing_subscription on public.org_billing(stripe_subscription_id);
+create index idx_billing_webhook_events_org_created on public.billing_webhook_events(org_id, created_at desc);
+create index idx_billing_webhook_events_subscription on public.billing_webhook_events(stripe_subscription_id);
 
 -- Enable RLS
 alter table public.orgs enable row level security;
@@ -453,6 +500,8 @@ alter table public.usage_events enable row level security;
 alter table public.usage_daily_rollups enable row level security;
 alter table public.audit_logs enable row level security;
 alter table public.webhook_endpoints enable row level security;
+alter table public.org_billing enable row level security;
+alter table public.billing_webhook_events enable row level security;
 
 -- orgs
 create policy "org members read orgs" on public.orgs
@@ -584,5 +633,19 @@ for select using (public.is_org_admin_or_owner(org_id));
 create policy "admins manage webhooks" on public.webhook_endpoints
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
+
+-- billing
+create policy "members read org billing" on public.org_billing
+for select using (public.is_org_member(org_id));
+
+create policy "admins manage org billing" on public.org_billing
+for all using (public.is_org_admin_or_owner(org_id))
+with check (public.is_org_admin_or_owner(org_id));
+
+create policy "admins read billing webhook events" on public.billing_webhook_events
+for select using (
+  org_id is not null
+  and public.is_org_admin_or_owner(org_id)
+);
 
 commit;

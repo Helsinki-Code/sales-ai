@@ -1,9 +1,9 @@
-import { getWorkspaceId } from "@/lib/workspace";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthResult =
   | { type: "apikey"; token: string }
-  | { type: "session"; accessToken: string; workspaceId: string }
+  | { type: "session"; accessToken: string; workspaceId: string; orgId: string }
   | null;
 
 export async function resolveAuth(req: Request): Promise<AuthResult> {
@@ -30,12 +30,13 @@ export async function resolveAuth(req: Request): Promise<AuthResult> {
       return null;
     }
 
-    const workspaceId = await getWorkspaceId(session.user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
 
     return {
       type: "session",
       accessToken: session.access_token,
       workspaceId,
+      orgId,
     };
   } catch (error) {
     return null;

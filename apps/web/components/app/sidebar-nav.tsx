@@ -11,6 +11,7 @@ const appLinks = [
   { href: "/keys", label: "API Keys" },
   { href: "/playground", label: "Playground" },
   { href: "/usage", label: "Usage" },
+  { href: "/billing", label: "Billing" },
   { href: "/settings", label: "Settings" }
 ];
 

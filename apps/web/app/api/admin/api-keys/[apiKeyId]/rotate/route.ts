@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { randomSecret, sha256 } from "@/lib/server-crypto";
+import { ensureBillingActiveForOrg } from "@/lib/billing/status";
 import crypto from "node:crypto";
 
 export async function POST(
@@ -21,6 +22,10 @@ export async function POST(
     }
 
     const { workspaceId, orgId } = await getWorkspaceContext(user.id);
+    const billingBlockResponse = await ensureBillingActiveForOrg(orgId, request);
+    if (billingBlockResponse) {
+      return billingBlockResponse;
+    }
 
     const { data: currentKey, error: currentKeyError } = await supabase
       .from("api_keys")
