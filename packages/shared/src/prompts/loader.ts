@@ -52,7 +52,7 @@ Return ONLY a valid JSON object. NO markdown. NO fences. NO prose.
 Return as a single continuous JSON object with prospect analysis data.`,
     leads: `
 CRITICAL - Output Format (OVERRIDE ALL PREVIOUS INSTRUCTIONS):
-Return ONLY a valid JSON object. NO markdown. NO fences. NO prose.
+Return ONLY a valid JSON array. NO markdown. NO fences. NO prose.
 Return as a single continuous JSON array of lead objects.`,
     report: `
 CRITICAL - Output Format (OVERRIDE ALL PREVIOUS INSTRUCTIONS):

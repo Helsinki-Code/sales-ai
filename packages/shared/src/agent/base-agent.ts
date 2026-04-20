@@ -13,6 +13,7 @@ type RunAgentInput = {
   userPrompt: string;
   redis: Redis | null;
   maxTokens?: number;
+  onProgress?: (update: { stage: string; progress: number; message: string }) => Promise<void> | void;
 };
 
 export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAgentResult<T>> {
@@ -30,8 +31,20 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
   let toolCalls = 0;
   let accumulatedText = "";
 
+  const reportProgress = async (stage: string, progress: number, message: string): Promise<void> => {
+    if (!input.onProgress) return;
+    const clampedProgress = Math.max(0, Math.min(99, Math.round(progress)));
+    await input.onProgress({ stage, progress: clampedProgress, message });
+  };
+
   while (turns < config.maxAgentTurns) {
     turns += 1;
+
+    await reportProgress(
+      "running_agent",
+      25 + turns * 4 + toolCalls * 2,
+      `Generating response (turn ${turns}/${config.maxAgentTurns})...`
+    );
 
     const response: any = await anthropic.messages.create({
       model: input.model,
@@ -51,6 +64,7 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
     if (responseText) accumulatedText = accumulatedText ? `${accumulatedText}\n${responseText}` : responseText;
 
     if (response.stop_reason === "end_turn" || response.stop_reason === "stop_sequence") {
+      await reportProgress("finalizing_output", 92, "Finalizing model output...");
       const rawText = accumulatedText || responseText;
       const extracted = extractJsonObject(rawText);
       const parsed = safeJsonParse<T>(extracted);
@@ -73,6 +87,11 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
     }
 
     if (response.stop_reason === "max_tokens") {
+      await reportProgress(
+        "continuing_generation",
+        35 + turns * 5 + toolCalls * 2,
+        "Model hit max tokens. Continuing generation..."
+      );
       messages.push({
         role: "user",
         content: "Continue exactly where you stopped. Return only the remaining JSON content with no markdown or explanations."
@@ -83,6 +102,12 @@ export async function runAgent<T = unknown>(input: RunAgentInput): Promise<RunAg
     if (response.stop_reason === "tool_use") {
       const toolUses = (response.content ?? []).filter((block: any) => block.type === "tool_use");
       toolCalls += toolUses.length;
+
+      await reportProgress(
+        "running_tools",
+        30 + turns * 5 + toolCalls * 3,
+        `Executing ${toolUses.length} tool call(s)...`
+      );
 
       const toolResults = await Promise.all(
         toolUses.map(async (toolUse: any) => {

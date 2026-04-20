@@ -16,6 +16,7 @@ export type ExecuteSkillInput = {
   apiKey: string;
   model?: string;
   redis: Redis | null;
+  onProgress?: (update: { stage: string; progress: number; message: string }) => Promise<void> | void;
 };
 
 export async function executeSkill<T = unknown>(input: ExecuteSkillInput): Promise<RunAgentResult<T>> {
@@ -28,7 +29,8 @@ export async function executeSkill<T = unknown>(input: ExecuteSkillInput): Promi
     model,
     systemPrompt,
     userPrompt,
-    redis: input.redis
+    redis: input.redis,
+    onProgress: input.onProgress
   });
 }
 

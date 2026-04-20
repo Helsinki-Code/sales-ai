@@ -62,21 +62,47 @@ async function pushEvent(jobId: string, workspaceId: string, stage: string, prog
 export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> {
   const payload = job.data;
 
-  await supabaseAdmin.from("jobs").update({ status: "running", stage: "starting", progress: 5 }).eq("id", payload.jobId);
-  await pushEvent(payload.jobId, payload.workspaceId, "starting", 5, "Worker picked up job.");
+  let lastStage = "";
+  let lastProgress = -1;
+
+  const updateRunningState = async (stage: string, progress: number, message: string): Promise<void> => {
+    const clampedProgress = Math.max(0, Math.min(99, Math.round(progress)));
+    const stageChanged = stage !== lastStage;
+    const progressDelta = Math.abs(clampedProgress - lastProgress);
+
+    if (!stageChanged && progressDelta < 3) return;
+
+    lastStage = stage;
+    lastProgress = clampedProgress;
+
+    await supabaseAdmin
+      .from("jobs")
+      .update({ status: "running", stage, progress: clampedProgress })
+      .eq("id", payload.jobId);
+
+    await pushEvent(payload.jobId, payload.workspaceId, stage, clampedProgress, message);
+  };
+
+  await updateRunningState("starting", 5, "Worker picked up job.");
 
   const anthropicApiKey = await getWorkspaceApiKey(payload.workspaceId);
-  const model = await resolveModel(payload.workspaceId, payload.endpoint, payload.requestedModel);
+  await updateRunningState("resolving_model", 15, "Resolved workspace credentials.");
 
-  await supabaseAdmin.from("jobs").update({ stage: "running_agent", progress: 30 }).eq("id", payload.jobId);
+  const model = await resolveModel(payload.workspaceId, payload.endpoint, payload.requestedModel);
+  await updateRunningState("running_agent", 25, `Running endpoint ${payload.endpoint}...`);
 
   const result = await executeSkill({
     endpoint: payload.endpoint,
     userInput: payload.input,
     apiKey: anthropicApiKey,
     model,
-    redis
+    redis,
+    onProgress: async ({ stage, progress, message }) => {
+      await updateRunningState(stage, progress, message);
+    }
   });
+
+  await updateRunningState("persisting_result", 96, "Persisting final result...");
 
   await supabaseAdmin.from("jobs").update({
     status: "complete",
