@@ -5,7 +5,10 @@ interface ResultViewerProps {
 }
 
 export function ResultViewer({ result }: ResultViewerProps) {
-  const { data, meta } = result;
+  const hasWrappedData =
+    result && typeof result === "object" && !Array.isArray(result) && Object.prototype.hasOwnProperty.call(result, "data");
+  const data = hasWrappedData ? result.data : result;
+  const meta = hasWrappedData ? result.meta : undefined;
 
   const formatValue = (value: any): string => {
     if (typeof value === "string") return value;
@@ -17,6 +20,41 @@ export function ResultViewer({ result }: ResultViewerProps) {
   };
 
   const isJson = typeof data === "object" && data !== null;
+  const isArray = Array.isArray(data);
+
+  const renderArray = (items: any[]) => {
+    if (items.length === 0) return <p style={{ margin: 0 }}>No items returned.</p>;
+
+    return (
+      <div style={{ fontSize: "0.85rem", display: "grid", gap: "0.75rem" }}>
+        {items.map((item, index) => {
+          const title =
+            typeof item === "object" && item
+              ? item.company_name || item.name || item.contact_name || `Item ${index + 1}`
+              : `Item ${index + 1}`;
+
+          return (
+            <div key={index} style={{ padding: "0.75rem", border: "1px solid var(--border)", borderRadius: "8px" }}>
+              <div style={{ fontWeight: "700", marginBottom: "0.5rem" }}>{title}</div>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordWrap: "break-word",
+                  fontSize: "0.8rem",
+                  fontFamily: "monospace",
+                  lineHeight: "1.5",
+                  color: "var(--slate)"
+                }}
+              >
+                {JSON.stringify(item, null, 2)}
+              </pre>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="card">
@@ -42,7 +80,9 @@ export function ResultViewer({ result }: ResultViewerProps) {
 
       {/* Main Result */}
       <div style={{ marginBottom: "2rem", padding: "1rem", backgroundColor: "var(--panel)", borderRadius: "4px" }}>
-        <h4 style={{ margin: "0 0 1rem 0", fontSize: "0.9rem", color: "var(--slate)" }}>Analysis</h4>
+        <h4 style={{ margin: "0 0 1rem 0", fontSize: "0.9rem", color: "var(--slate)" }}>
+          {isArray ? `Results (${data.length})` : "Analysis"}
+        </h4>
         {typeof data === "string" ? (
           <pre
             style={{
@@ -56,6 +96,8 @@ export function ResultViewer({ result }: ResultViewerProps) {
           >
             {data}
           </pre>
+        ) : isArray ? (
+          renderArray(data)
         ) : isJson ? (
           <div style={{ fontSize: "0.85rem" }}>
             {Object.entries(data).map(([key, value]) => (
