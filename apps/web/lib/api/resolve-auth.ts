@@ -30,7 +30,16 @@ export async function resolveAuth(req: Request): Promise<AuthResult> {
       return null;
     }
 
-    const { workspaceId, orgId } = await getWorkspaceContext(session.user.id);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user?.id) {
+      return null;
+    }
+
+    const { workspaceId, orgId } = await getWorkspaceContext(user.id);
 
     return {
       type: "session",

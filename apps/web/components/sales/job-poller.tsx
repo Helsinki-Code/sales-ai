@@ -38,6 +38,9 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         }
 
         const jobData = data.data;
+        if (jobData.status !== "failed") {
+          setError(null);
+        }
         setStatus(jobData.status);
         setProgress(jobData.progress || 0);
         setStage(jobData.stage || "");
@@ -48,8 +51,8 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         } else if (jobData.status === "failed") {
           setError(jobData.error || "Job failed");
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Polling error");
+      } catch {
+        setError("Temporary network issue while polling job status. Retrying...");
       }
     };
 

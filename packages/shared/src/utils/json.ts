@@ -6,6 +6,48 @@ export function safeJsonParse<T>(input: string): T | null {
   }
 }
 
+function normalizeCommonJsonIssues(input: string): string {
+  return input
+    .replace(/^\uFEFF/, "")
+    .replace(/\u00A0/g, " ")
+    .replace(/[“”]/g, "\"")
+    .replace(/[‘’]/g, "'")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+}
+
+function removeTrailingCommas(input: string): string {
+  let previous = "";
+  let current = input;
+  while (current !== previous) {
+    previous = current;
+    current = current.replace(/,\s*([}\]])/g, "$1");
+  }
+  return current;
+}
+
+function normalizeJsLikeObject(input: string): string {
+  return input
+    .replace(/([{,]\s*)([A-Za-z_][\w-]*)(\s*:)/g, '$1"$2"$3')
+    .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_match, value: string) => {
+      const escaped = value.replace(/"/g, '\\"');
+      return `"${escaped}"`;
+    });
+}
+
+function parseNdjsonArray<T>(input: string): T | null {
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/,\s*$/, ""));
+
+  if (lines.length < 2 || !lines.every((line) => line.startsWith("{") && line.endsWith("}"))) {
+    return null;
+  }
+
+  return safeJsonParse<T>(`[${lines.join(",")}]`);
+}
+
 function isJsonContainer(input: string): boolean {
   const trimmed = input.trim();
   return (
@@ -76,6 +118,24 @@ export function extractJsonObject(input: string): string {
   if (balanced) return balanced;
 
   return trimmed;
+}
+
+export function parseJsonPayload<T>(input: string): T | null {
+  const normalized = normalizeCommonJsonIssues(input).trim();
+  const extracted = extractJsonObject(normalized);
+
+  const attempts = [
+    extracted,
+    removeTrailingCommas(extracted),
+    normalizeJsLikeObject(removeTrailingCommas(extracted))
+  ];
+
+  for (const candidate of attempts) {
+    const parsed = safeJsonParse<T>(candidate);
+    if (parsed) return parsed;
+  }
+
+  return parseNdjsonArray<T>(normalized);
 }
 
 export function delay(ms: number): Promise<void> {

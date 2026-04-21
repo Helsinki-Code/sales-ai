@@ -53,7 +53,36 @@ Return as a single continuous JSON object with prospect analysis data.`,
     leads: `
 CRITICAL - Output Format (OVERRIDE ALL PREVIOUS INSTRUCTIONS):
 Return ONLY a valid JSON array. NO markdown. NO fences. NO prose.
-Return as a single continuous JSON array of lead objects.`,
+Do NOT output CSV, files, notes, or explanatory text.
+Return as a single continuous JSON array of lead objects.
+
+Each lead object MUST use this shape:
+{
+  "company_name": "string",
+  "company_website": "https://example.com",
+  "company_industry": "string",
+  "company_size_employees": "string",
+  "company_location": "string",
+  "company_funding_total": "string",
+  "company_funding_recent_date": "string",
+  "company_linkedin": "string",
+  "company_description": "string",
+  "contact_name": "string",
+  "contact_title": "string",
+  "contact_email": "string",
+  "contact_linkedin": "string",
+  "contact_phone": "string",
+  "email_confidence": "confirmed|pattern_derived|unknown",
+  "recent_funding_flag": true,
+  "recent_hiring_flag": true,
+  "tech_stack_match_flag": true,
+  "growth_signal_flag": true,
+  "score": 0,
+  "fit_reason": "string"
+}
+
+Return only an array like:
+[ { ... }, { ... } ]`,
     report: `
 CRITICAL - Output Format (OVERRIDE ALL PREVIOUS INSTRUCTIONS):
 Return ONLY a valid JSON object. NO markdown. NO fences. NO prose.
