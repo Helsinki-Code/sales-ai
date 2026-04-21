@@ -71,7 +71,23 @@ export async function getJob(jobId: string, workspaceId: string): Promise<any | 
     .eq("workspace_id", workspaceId)
     .maybeSingle();
 
-  return data;
+  if (!data) return null;
+
+  const { data: latestEvent } = await supabaseAdmin
+    .from("job_events")
+    .select("stage,progress,message,metadata,created_at")
+    .eq("job_id", jobId)
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    ...data,
+    stage_message: latestEvent?.message ?? null,
+    stage_metadata: latestEvent?.metadata ?? {},
+    stage_updated_at: latestEvent?.created_at ?? data.updated_at
+  };
 }
 
 export async function cancelJob(jobId: string, workspaceId: string): Promise<void> {

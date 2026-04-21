@@ -8,7 +8,15 @@ const schema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   INTERNAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
-  WORKER_CONCURRENCY: z.coerce.number().default(4)
+  WORKER_CONCURRENCY: z.coerce.number().default(4),
+  LEADS_ENGINE_MODE: z.enum(["legacy", "parallel_v1"]).default("legacy"),
+  PARALLEL_API_KEY: z.string().optional(),
+  PARALLEL_BASE_URL: z.string().url().default("https://api.parallel.ai"),
+  PARALLEL_TIMEOUT_MS: z.coerce.number().default(120000),
+  PARALLEL_FINDALL_GENERATOR_DEFAULT: z.string().default("core"),
+  PARALLEL_FINDALL_ESCALATION_GENERATOR: z.string().default("pro"),
+  PARALLEL_FINDALL_BETA_HEADER: z.string().default("findall-2025-09-15"),
+  PARALLEL_TASK_PROCESSOR: z.string().default("core")
 });
 
 export type WorkerEnv = z.infer<typeof schema>;

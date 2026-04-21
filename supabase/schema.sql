@@ -310,6 +310,9 @@ create table public.usage_events (
   duration_ms integer not null default 0,
   status public.usage_status not null,
   cost_usd numeric(12,6),
+  parallel_api_calls integer not null default 0,
+  parallel_enrichment_runs integer not null default 0,
+  parallel_estimated_cost_usd numeric(12,6),
   request_id text,
   created_at timestamptz not null default now()
 );
@@ -448,6 +451,35 @@ create table public.billing_webhook_events (
   created_at timestamptz not null default now()
 );
 
+-- Leads run traceability (parallel leads pipeline observability)
+create table public.leads_runs (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid not null unique references public.jobs(id) on delete cascade,
+  org_id uuid not null references public.orgs(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  status text not null,
+  generator_used text,
+  findall_run_ids text[] not null default '{}',
+  task_run_ids text[] not null default '{}',
+  retry_count integer not null default 0,
+  parallel_api_calls integer not null default 0,
+  matched_candidates integer not null default 0,
+  deduped_candidates integer not null default 0,
+  enriched_candidates integer not null default 0,
+  filtered_candidates integer not null default 0,
+  qualified_candidates integer not null default 0,
+  evidence_coverage numeric(5,2),
+  duration_ms integer,
+  error_code text,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger trg_leads_runs_updated_at
+before update on public.leads_runs
+for each row execute function public.set_updated_at();
+
 -- Immutability triggers
 create trigger trg_orgs_immutable_created_at
 before update on public.orgs
@@ -483,6 +515,9 @@ create index idx_org_billing_customer on public.org_billing(stripe_customer_id);
 create index idx_org_billing_subscription on public.org_billing(stripe_subscription_id);
 create index idx_billing_webhook_events_org_created on public.billing_webhook_events(org_id, created_at desc);
 create index idx_billing_webhook_events_subscription on public.billing_webhook_events(stripe_subscription_id);
+create index idx_leads_runs_workspace_created on public.leads_runs(workspace_id, created_at desc);
+create index idx_leads_runs_org_created on public.leads_runs(org_id, created_at desc);
+create index idx_leads_runs_status on public.leads_runs(status);
 
 -- Enable RLS
 alter table public.orgs enable row level security;
@@ -502,6 +537,7 @@ alter table public.audit_logs enable row level security;
 alter table public.webhook_endpoints enable row level security;
 alter table public.org_billing enable row level security;
 alter table public.billing_webhook_events enable row level security;
+alter table public.leads_runs enable row level security;
 
 -- orgs
 create policy "org members read orgs" on public.orgs
@@ -647,5 +683,12 @@ for select using (
   org_id is not null
   and public.is_org_admin_or_owner(org_id)
 );
+
+create policy "members read leads runs" on public.leads_runs
+for select using (public.is_org_member(org_id));
+
+create policy "admins manage leads runs" on public.leads_runs
+for all using (public.is_org_admin_or_owner(org_id))
+with check (public.is_org_admin_or_owner(org_id));
 
 commit;

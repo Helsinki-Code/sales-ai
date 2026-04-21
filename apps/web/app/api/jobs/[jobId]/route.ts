@@ -13,6 +13,29 @@ type UpstreamPayload = {
   };
 };
 
+function sanitizeText(value: string): string {
+  return value
+    .replace(/\bparallel\b/gi, "managed")
+    .replace(/\[PARALLEL_[A-Z_]+\]\s*/g, "");
+}
+
+function sanitizePayload<T>(input: T): T {
+  if (typeof input === "string") return sanitizeText(input) as T;
+  if (Array.isArray(input)) return input.map((item) => sanitizePayload(item)) as T;
+  if (input && typeof input === "object") {
+    const output: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+      if (key === "source_provider" && typeof value === "string") {
+        output[key] = "managed";
+      } else {
+        output[key] = sanitizePayload(value);
+      }
+    }
+    return output as T;
+  }
+  return input;
+}
+
 async function readUpstreamPayload(response: Response): Promise<{ payload: UpstreamPayload; raw: string }> {
   const raw = await response.text();
   if (!raw) return { payload: {}, raw: "" };
@@ -88,10 +111,10 @@ export async function GET(
           { status: 502 }
         );
       }
-      return NextResponse.json(payload, { status: response.status });
+      return NextResponse.json(sanitizePayload(payload), { status: response.status });
     }
 
-    return NextResponse.json(payload);
+    return NextResponse.json(sanitizePayload(payload));
   } catch (error) {
     console.error("Jobs GET proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -157,10 +180,10 @@ export async function DELETE(
           { status: 502 }
         );
       }
-      return NextResponse.json(payload, { status: response.status });
+      return NextResponse.json(sanitizePayload(payload), { status: response.status });
     }
 
-    return NextResponse.json(payload);
+    return NextResponse.json(sanitizePayload(payload));
   } catch (error) {
     console.error("Jobs DELETE proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

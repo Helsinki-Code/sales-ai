@@ -14,6 +14,10 @@ interface UsageRow {
   cost_usd: number;
 }
 
+function sanitizeModelLabel(model: string): string {
+  return model.replace(/parallel/gi, "managed");
+}
+
 export default function UsagePage() {
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,7 +168,9 @@ export default function UsagePage() {
                   <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: "0.75rem" }}>{new Date(row.usage_date).toLocaleDateString()}</td>
                     <td style={{ padding: "0.75rem" }}>{row.endpoint}</td>
-                    <td style={{ padding: "0.75rem", fontSize: "0.8rem", color: "var(--slate)" }}>{row.model}</td>
+                    <td style={{ padding: "0.75rem", fontSize: "0.8rem", color: "var(--slate)" }}>
+                      {sanitizeModelLabel(row.model)}
+                    </td>
                     <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.request_count}</td>
                     <td style={{ padding: "0.75rem", textAlign: "right", color: "var(--mint)" }}>{row.success_count}</td>
                     <td style={{ padding: "0.75rem", textAlign: "right", color: "var(--slate)" }}>{row.input_tokens.toLocaleString()}</td>

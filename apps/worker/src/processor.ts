@@ -3,6 +3,7 @@ import type { Job } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
+import { LeadsEngineError, runParallelLeadsEngine } from "./leads-engine.js";
 
 export type SalesJobPayload = {
   jobId: string;
@@ -49,28 +50,42 @@ async function resolveModel(workspaceId: string, endpoint: string, requestedMode
   return defaultModel;
 }
 
-async function pushEvent(jobId: string, workspaceId: string, stage: string, progress: number, message: string): Promise<void> {
+async function pushEvent(
+  jobId: string,
+  workspaceId: string,
+  stage: string,
+  progress: number,
+  message: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
   await supabaseAdmin.from("job_events").insert({
     job_id: jobId,
     workspace_id: workspaceId,
     stage,
     progress,
-    message
+    message,
+    metadata: metadata ?? {}
   });
 }
 
 export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> {
   const payload = job.data;
+  const startedAt = Date.now();
 
   let lastStage = "";
   let lastProgress = -1;
 
-  const updateRunningState = async (stage: string, progress: number, message: string): Promise<void> => {
+  const updateRunningState = async (
+    stage: string,
+    progress: number,
+    message: string,
+    metadata?: Record<string, unknown>
+  ): Promise<void> => {
     const clampedProgress = Math.max(0, Math.min(99, Math.round(progress)));
     const stageChanged = stage !== lastStage;
     const progressDelta = Math.abs(clampedProgress - lastProgress);
 
-    if (!stageChanged && progressDelta < 3) return;
+    if (!stageChanged && progressDelta < 3 && !metadata) return;
 
     lastStage = stage;
     lastProgress = clampedProgress;
@@ -80,27 +95,72 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
       .update({ status: "running", stage, progress: clampedProgress })
       .eq("id", payload.jobId);
 
-    await pushEvent(payload.jobId, payload.workspaceId, stage, clampedProgress, message);
+    await pushEvent(payload.jobId, payload.workspaceId, stage, clampedProgress, message, metadata);
   };
 
   await updateRunningState("starting", 5, "Worker picked up job.");
 
-  const anthropicApiKey = await getWorkspaceApiKey(payload.workspaceId);
-  await updateRunningState("resolving_model", 15, "Resolved workspace credentials.");
+  let model = "parallel-leads-v1";
+  let resultData: unknown;
+  let durationMs = 0;
+  let tokens = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: 0
+  };
+  let parallelUsage = {
+    apiCalls: 0,
+    enrichmentRuns: 0,
+    estimatedCostUsd: 0
+  };
 
-  const model = await resolveModel(payload.workspaceId, payload.endpoint, payload.requestedModel);
-  await updateRunningState("running_agent", 25, `Running endpoint ${payload.endpoint}...`);
+  if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "parallel_v1") {
+    const leadsResult = await runParallelLeadsEngine({
+      jobId: payload.jobId,
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      input: payload.input,
+      onProgress: async ({ stage, progress, message, metadata }) => {
+        await updateRunningState(stage, progress, message, metadata);
+      }
+    });
 
-  const result = await executeSkill({
-    endpoint: payload.endpoint,
-    userInput: payload.input,
-    apiKey: anthropicApiKey,
-    model,
-    redis,
-    onProgress: async ({ stage, progress, message }) => {
-      await updateRunningState(stage, progress, message);
-    }
-  });
+    resultData = leadsResult.leads;
+    durationMs = Date.now() - startedAt;
+    model = `parallel:${leadsResult.stats.generatorUsed}`;
+    parallelUsage = {
+      apiCalls: leadsResult.stats.parallelApiCalls,
+      enrichmentRuns: leadsResult.stats.taskRunIds.length,
+      estimatedCostUsd: Number((leadsResult.stats.parallelApiCalls * 0.002).toFixed(6))
+    };
+  } else {
+    const anthropicApiKey = await getWorkspaceApiKey(payload.workspaceId);
+    await updateRunningState("resolving_model", 15, "Resolved workspace credentials.");
+
+    model = await resolveModel(payload.workspaceId, payload.endpoint, payload.requestedModel);
+    await updateRunningState("running_agent", 25, `Running endpoint ${payload.endpoint}...`);
+
+    const result = await executeSkill({
+      endpoint: payload.endpoint,
+      userInput: payload.input,
+      apiKey: anthropicApiKey,
+      model,
+      redis,
+      onProgress: async ({ stage, progress, message }) => {
+        await updateRunningState(stage, progress, message);
+      }
+    });
+
+    resultData = result.data;
+    durationMs = result.durationMs;
+    tokens = {
+      inputTokens: result.tokens.inputTokens ?? 0,
+      outputTokens: result.tokens.outputTokens ?? 0,
+      cacheCreationInputTokens: result.tokens.cacheCreationInputTokens ?? 0,
+      cacheReadInputTokens: result.tokens.cacheReadInputTokens ?? 0
+    };
+  }
 
   await updateRunningState("persisting_result", 96, "Persisting final result...");
 
@@ -108,7 +168,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     status: "complete",
     stage: "complete",
     progress: 100,
-    result_payload: result.data,
+    result_payload: resultData,
     completed_at: new Date().toISOString()
   }).eq("id", payload.jobId);
 
@@ -120,25 +180,37 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     api_key_id: payload.apiKeyId,
     endpoint: payload.endpoint,
     model,
-    input_tokens: result.tokens.inputTokens ?? 0,
-    output_tokens: result.tokens.outputTokens ?? 0,
-    cache_creation_input_tokens: result.tokens.cacheCreationInputTokens ?? 0,
-    cache_read_input_tokens: result.tokens.cacheReadInputTokens ?? 0,
-    duration_ms: result.durationMs,
+    input_tokens: tokens.inputTokens,
+    output_tokens: tokens.outputTokens,
+    cache_creation_input_tokens: tokens.cacheCreationInputTokens,
+    cache_read_input_tokens: tokens.cacheReadInputTokens,
+    duration_ms: durationMs,
     request_id: payload.requestId,
-    status: "success"
+    status: "success",
+    parallel_api_calls: parallelUsage.apiCalls,
+    parallel_enrichment_runs: parallelUsage.enrichmentRuns,
+    parallel_estimated_cost_usd: parallelUsage.estimatedCostUsd
   });
 }
 
 export async function handleSalesJobFailure(job: Job<SalesJobPayload> | undefined, error: Error): Promise<void> {
   if (!job) return;
+  const maybeCode = (error as Error & { code?: unknown }).code;
+  const errorCode =
+    error instanceof LeadsEngineError
+      ? error.code
+      : typeof maybeCode === "string"
+      ? maybeCode
+      : "UNKNOWN_ERROR";
+  const errorMessage = `[${errorCode}] ${error.message}`;
+
   await supabaseAdmin.from("jobs").update({
     status: "failed",
     stage: "failed",
     progress: 100,
-    error_message: error.message,
+    error_message: errorMessage,
     completed_at: new Date().toISOString()
   }).eq("id", job.data.jobId);
 
-  await pushEvent(job.data.jobId, job.data.workspaceId, "failed", 100, error.message);
+  await pushEvent(job.data.jobId, job.data.workspaceId, "failed", 100, errorMessage, { errorCode });
 }

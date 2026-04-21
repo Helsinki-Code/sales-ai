@@ -5,6 +5,24 @@ interface ResultViewerProps {
 }
 
 export function ResultViewer({ result }: ResultViewerProps) {
+  const sanitizeProviderText = (value: string): string => value.replace(/parallel/gi, "managed");
+
+  const sanitizeForDisplay = (input: any): any => {
+    if (typeof input === "string") return sanitizeProviderText(input);
+    if (Array.isArray(input)) return input.map((item) => sanitizeForDisplay(item));
+    if (input && typeof input === "object") {
+      return Object.fromEntries(
+        Object.entries(input).map(([key, value]) => {
+          if (key === "source_provider" && typeof value === "string") {
+            return [key, "managed"];
+          }
+          return [key, sanitizeForDisplay(value)];
+        })
+      );
+    }
+    return input;
+  };
+
   const hasWrappedData =
     result && typeof result === "object" && !Array.isArray(result) && Object.prototype.hasOwnProperty.call(result, "data");
   const data = hasWrappedData ? result.data : result;
@@ -21,6 +39,82 @@ export function ResultViewer({ result }: ResultViewerProps) {
 
   const isJson = typeof data === "object" && data !== null;
   const isArray = Array.isArray(data);
+  const isLeadsV2Array =
+    isArray &&
+    data.length > 0 &&
+    typeof data[0] === "object" &&
+    data[0] !== null &&
+    Object.prototype.hasOwnProperty.call(data[0], "source_provider") &&
+    Object.prototype.hasOwnProperty.call(data[0], "score_breakdown");
+
+  const renderSignalChip = (label: string, active: boolean) => (
+    <span
+      style={{
+        fontSize: "0.72rem",
+        padding: "0.2rem 0.45rem",
+        borderRadius: "999px",
+        border: "1px solid var(--border)",
+        backgroundColor: active ? "var(--panel)" : "transparent",
+        color: active ? "var(--ink)" : "var(--slate)"
+      }}
+    >
+      {label}
+    </span>
+  );
+
+  const renderLeadsCards = (items: any[]) => {
+    return (
+      <div style={{ display: "grid", gap: "0.85rem" }}>
+        {items.map((item, index) => (
+          <div
+            key={`${item.company_name}-${index}`}
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: "10px",
+              padding: "0.85rem",
+              backgroundColor: "var(--panel)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{item.company_name || "Unknown company"}</div>
+                <div style={{ color: "var(--slate)", fontSize: "0.78rem", marginTop: "0.2rem" }}>
+                  {item.contact_name || "Unknown contact"} {item.contact_title ? `- ${item.contact_title}` : ""}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "0.82rem", fontWeight: 700 }}>{item.score ?? 0}/100</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--slate)" }}>
+                  {item.score >= 80 ? "Grade A" : item.score >= 60 ? "Grade B" : item.score >= 40 ? "Grade C" : "Grade D"}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: "0.65rem", fontSize: "0.78rem", color: "var(--slate)" }}>{item.fit_reason}</div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.65rem" }}>
+              {renderSignalChip("Funding", Boolean(item.recent_funding_flag))}
+              {renderSignalChip("Hiring", Boolean(item.recent_hiring_flag))}
+              {renderSignalChip("Tech Match", Boolean(item.tech_stack_match_flag))}
+              {renderSignalChip("Growth", Boolean(item.growth_signal_flag))}
+              {renderSignalChip(`Citations ${item.evidence?.citationsCount ?? 0}`, true)}
+            </div>
+
+            <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", color: "var(--slate)" }}>
+              Source: Managed Engine | Run: {item.source_run_id} | Confidence: {item.enrichment_confidence}
+            </div>
+            {item.score_breakdown ? (
+              <div style={{ marginTop: "0.6rem", fontSize: "0.75rem", color: "var(--slate)", lineHeight: 1.5 }}>
+                ICP {item.score_breakdown.icp_fit?.score ?? 0} | Hiring {item.score_breakdown.hiring_signal?.score ?? 0} |
+                Funding {item.score_breakdown.funding_signal?.score ?? 0} | Tech {item.score_breakdown.tech_stack_match?.score ?? 0} |
+                Growth {item.score_breakdown.growth_signal?.score ?? 0}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const renderArray = (items: any[]) => {
     if (items.length === 0) return <p style={{ margin: 0 }}>No items returned.</p>;
@@ -62,7 +156,8 @@ export function ResultViewer({ result }: ResultViewerProps) {
         <h3 style={{ margin: 0 }}>Result</h3>
         <button
           onClick={() => {
-            navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+            const safeCopy = sanitizeForDisplay(result);
+            navigator.clipboard.writeText(JSON.stringify(safeCopy, null, 2));
             alert("Copied to clipboard!");
           }}
           style={{
@@ -97,7 +192,7 @@ export function ResultViewer({ result }: ResultViewerProps) {
             {data}
           </pre>
         ) : isArray ? (
-          renderArray(data)
+          isLeadsV2Array ? renderLeadsCards(data) : renderArray(data)
         ) : isJson ? (
           <div style={{ fontSize: "0.85rem" }}>
             {Object.entries(data).map(([key, value]) => (
@@ -128,7 +223,9 @@ export function ResultViewer({ result }: ResultViewerProps) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", fontSize: "0.85rem" }}>
             <div>
               <div style={{ color: "var(--slate)", fontSize: "0.8rem", marginBottom: "0.25rem" }}>Model</div>
-              <div style={{ fontFamily: "monospace" }}>{meta.model}</div>
+              <div style={{ fontFamily: "monospace" }}>
+                {typeof meta.model === "string" ? sanitizeProviderText(meta.model) : meta.model}
+              </div>
             </div>
             <div>
               <div style={{ color: "var(--slate)", fontSize: "0.8rem", marginBottom: "0.25rem" }}>Duration</div>

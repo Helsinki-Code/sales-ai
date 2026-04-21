@@ -31,7 +31,35 @@ Use managed Redis and copy TLS URI into `REDIS_URL` for both API and worker.
 - API health: `/api/v1/health`
 - API readiness: `/api/v1/ready`
 
-## 6) First smoke test
+## 6) Parallel Leads Engine (production)
+Set these worker env vars for the Parallel-only leads engine:
+- `LEADS_ENGINE_MODE=parallel_v1`
+- `PARALLEL_API_KEY`
+- `PARALLEL_BASE_URL=https://api.parallel.ai`
+- `PARALLEL_TIMEOUT_MS=120000`
+- `PARALLEL_FINDALL_GENERATOR_DEFAULT=core`
+- `PARALLEL_FINDALL_ESCALATION_GENERATOR=pro`
+- `PARALLEL_FINDALL_BETA_HEADER=findall-2025-09-15`
+- `PARALLEL_TASK_PROCESSOR=core`
+
+Behavior:
+- With `LEADS_ENGINE_MODE=parallel_v1`, `/sales/leads` runs only on Parallel FindAll + Task.
+- No Tavily/LLM fallback path is used for leads.
+- Failures return structured error codes through failed job events:
+  - `PARALLEL_AUTH_ERROR`
+  - `PARALLEL_RATE_LIMITED`
+  - `PARALLEL_TIMEOUT`
+  - `PARALLEL_SCHEMA_INVALID`
+  - `PARALLEL_UPSTREAM_ERROR`
+  - `INSUFFICIENT_QUALIFIED_LEADS`
+
+Operational playbook:
+- Rate-limit bursts (`429`): lower request volume and retry with backoff; engine already performs bounded retries.
+- Upstream outage (`5xx`/timeouts): pause `/sales/leads` usage in UI/API policy and replay failed jobs later.
+- Replay failed jobs: resubmit same payload with a fresh `Idempotency-Key`.
+- Degraded upstream: temporarily switch `LEADS_ENGINE_MODE=legacy` only if you explicitly want to suspend Parallel-only behavior.
+
+## 7) First smoke test
 1. Create org/workspace in dashboard.
 2. Add Anthropic BYOK key.
 3. Create API key with `sales:run`, `jobs:read`, `jobs:write` scopes.

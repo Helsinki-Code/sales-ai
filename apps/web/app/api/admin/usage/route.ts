@@ -47,7 +47,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data: data ?? [] });
+    const sanitized = (data ?? []).map((row: Record<string, unknown>) => {
+      const model = typeof row.model === "string" ? row.model.replace(/parallel/gi, "managed") : row.model;
+      return { ...row, model };
+    });
+
+    return NextResponse.json({ success: true, data: sanitized });
   } catch (error) {
     console.error("Usage GET proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

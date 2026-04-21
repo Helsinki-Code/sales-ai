@@ -228,11 +228,15 @@ const asyncEndpoints: EndpointSchema[] = [
     name: "POST /sales/leads",
     path: "Async lead discovery.",
     request: `{
-  "criteria": "string",
-  "signals": ["string"],
-  "limit": 10-100
+  "url": "https://example.com",
+  "count": 5-100
 }`,
-    response: "Same immediate envelope as /sales/prospect.",
+    response: `{
+  "job_id": "job_01abc...",
+  "status": "queued",
+  "poll_url": "/api/v1/jobs/job_01abc..."
+}`,
+    note: "Polling /jobs/:jobId returns leads v2 results with source_provider, source_run_id, enrichment_confidence, evidence, score_breakdown, and normalization_version.",
   },
 ];
 

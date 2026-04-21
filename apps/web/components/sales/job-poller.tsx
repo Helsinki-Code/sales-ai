@@ -10,9 +10,16 @@ interface JobPollerProps {
 }
 
 export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
+  const sanitizeUiText = (text: string): string =>
+    text
+      .replace(/\bparallel\b/gi, "managed")
+      .replace(/\[PARALLEL_[A-Z_]+\]\s*/g, "");
+
   const [status, setStatus] = useState<string>("queued");
   const [progress, setProgress] = useState<number>(0);
   const [stage, setStage] = useState<string>("");
+  const [stageMessage, setStageMessage] = useState<string>("");
+  const [stageMetadata, setStageMetadata] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [startTime] = useState<number>(Date.now());
@@ -33,7 +40,8 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         const data = await res.json();
 
         if (!res.ok) {
-          setError(data.error?.message || "Failed to fetch job status");
+          const errText = data.error?.message || "Failed to fetch job status";
+          setError(sanitizeUiText(errText));
           return;
         }
 
@@ -44,12 +52,16 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         setStatus(jobData.status);
         setProgress(jobData.progress || 0);
         setStage(jobData.stage || "");
+        setStageMessage(sanitizeUiText(jobData.stageMessage || ""));
+        setStageMetadata(
+          jobData.stageMetadata && typeof jobData.stageMetadata === "object" ? jobData.stageMetadata : {}
+        );
 
         if (jobData.status === "complete") {
           setResult(jobData.result);
           onComplete(jobData.result);
         } else if (jobData.status === "failed") {
-          setError(jobData.error || "Job failed");
+          setError(sanitizeUiText(jobData.error || "Job failed"));
         }
       } catch {
         setError("Temporary network issue while polling job status. Retrying...");
@@ -116,10 +128,35 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         </div>
 
         {stage && (
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <span style={{ fontWeight: "500" }}>Current Stage</span>
-            <span style={{ color: "var(--slate)" }}>{stage}</span>
-          </div>
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontWeight: "500" }}>Current Stage</span>
+              <span style={{ color: "var(--slate)" }}>{stage}</span>
+            </div>
+            {stageMessage ? (
+              <div style={{ color: "var(--slate)", fontSize: "0.82rem", marginBottom: "0.75rem" }}>{stageMessage}</div>
+            ) : null}
+            {Object.keys(stageMetadata).length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
+                {Object.entries(stageMetadata)
+                  .slice(0, 4)
+                  .map(([key, value]) => (
+                    <span
+                      key={key}
+                      style={{
+                        border: "1px solid var(--border)",
+                        borderRadius: "999px",
+                        padding: "0.2rem 0.5rem",
+                        fontSize: "0.72rem",
+                        color: "var(--slate)"
+                      }}
+                    >
+                      {key}: {typeof value === "string" || typeof value === "number" ? value : JSON.stringify(value)}
+                    </span>
+                  ))}
+              </div>
+            ) : null}
+          </>
         )}
 
         {/* Progress Bar */}

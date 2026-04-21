@@ -60,7 +60,10 @@ async function resolveApiKeyAuth(token: string, requiredScope?: string): Promise
 }
 
 async function resolveOAuthUserAuth(token: string): Promise<{ ok: boolean; auth?: any; errorCode?: string; errorMessage?: string }> {
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  const authClient = supabaseAdmin.auth as unknown as {
+    getUser: (jwt: string) => Promise<{ data: { user: { id: string; email?: string | null } | null }; error: unknown }>;
+  };
+  const { data, error } = await authClient.getUser(token);
   if (error || !data.user) return { ok: false };
 
   return {

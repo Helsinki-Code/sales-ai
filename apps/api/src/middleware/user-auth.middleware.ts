@@ -23,7 +23,10 @@ export const requireUserSession: RequestHandler = async (req, res, next) => {
       });
     }
 
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    const authClient = supabaseAdmin.auth as unknown as {
+      getUser: (jwt: string) => Promise<{ data: { user: { id: string; email?: string | null } | null }; error: unknown }>;
+    };
+    const { data, error } = await authClient.getUser(token);
     if (error || !data.user) {
       return res.status(401).json({
         success: false,
@@ -33,7 +36,7 @@ export const requireUserSession: RequestHandler = async (req, res, next) => {
 
     req.userAuth = {
       userId: data.user.id,
-      email: data.user.email
+      email: data.user.email ?? undefined
     };
     return next();
   } catch (err) {
