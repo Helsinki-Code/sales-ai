@@ -1,8 +1,14 @@
 import { z } from "zod";
 
+const safeText = z
+  .union([z.string(), z.number(), z.boolean()])
+  .nullish()
+  .transform((value) => (value == null ? "" : String(value)));
+
 const parallelRunStatusSchema = z.object({
-  status: z.enum(["queued", "running", "completed", "failed", "cancelling", "cancelled"]),
-  is_active: z.boolean().optional(),
+  // Keep status parsing permissive to tolerate beta response drift.
+  status: z.string().nullish().transform((value) => value ?? "unknown"),
+  is_active: z.boolean().nullish().transform((value) => Boolean(value)),
   metrics: z
     .object({
       generated_candidates_count: z.number().optional(),
@@ -13,24 +19,23 @@ const parallelRunStatusSchema = z.object({
 });
 
 const parallelFindAllCandidateSchema = z.object({
-  candidate_id: z.string(),
-  name: z.string().nullish().transform((value) => value ?? ""),
-  url: z.string().nullish().transform((value) => value ?? ""),
-  description: z.string().nullish().transform((value) => value ?? ""),
+  candidate_id: safeText.transform((value) => value || "unknown_candidate"),
+  name: safeText,
+  url: safeText,
+  description: safeText,
   // FindAll is still in beta and may introduce new statuses; treat unknown values as non-fatal.
-  match_status: z.string().nullish().transform((value) => value ?? "generated"),
-  output: z
-    .record(z.unknown())
-    .nullish()
-    .transform((value) => (value && typeof value === "object" ? value : {})),
-  basis: z
-    .array(z.unknown())
-    .nullish()
-    .transform((value) => (Array.isArray(value) ? value : []))
+  match_status: safeText.transform((value) => value || "generated"),
+  output: z.unknown().transform((value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }),
+  basis: z.unknown().transform((value) => (Array.isArray(value) ? value : []))
 });
 
 const parallelFindAllRunSchema = z.object({
-  findall_id: z.string(),
+  findall_id: safeText.transform((value) => value || "unknown_findall"),
   status: parallelRunStatusSchema,
   generator: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -39,23 +44,30 @@ const parallelFindAllRunSchema = z.object({
 });
 
 const parallelFindAllResultSchema = z.object({
-  findall_id: z.string(),
+  findall_id: safeText.transform((value) => value || "unknown_findall"),
   status: parallelRunStatusSchema,
-  candidates: z.array(parallelFindAllCandidateSchema).default([])
+  candidates: z.unknown().transform((value) => {
+    if (!Array.isArray(value)) return [];
+    const parsed = value
+      .map((candidate) => parallelFindAllCandidateSchema.safeParse(candidate))
+      .filter((result): result is { success: true; data: z.infer<typeof parallelFindAllCandidateSchema> } => result.success)
+      .map((result) => result.data);
+    return parsed;
+  })
 });
 
 const parallelTaskRunCreateSchema = z.object({
-  run_id: z.string(),
-  status: z.enum(["queued", "action_required", "running", "completed", "failed", "cancelling", "cancelled"]),
-  is_active: z.boolean(),
+  run_id: safeText.transform((value) => value || "unknown_run"),
+  status: z.string().nullish().transform((value) => value ?? "unknown"),
+  is_active: z.boolean().nullish().transform((value) => Boolean(value)),
   processor: z.string().optional()
 });
 
 const parallelTaskRunResultSchema = z.object({
   run: z.object({
-    run_id: z.string(),
-    status: z.enum(["queued", "action_required", "running", "completed", "failed", "cancelling", "cancelled"]),
-    is_active: z.boolean(),
+    run_id: safeText.transform((value) => value || "unknown_run"),
+    status: z.string().nullish().transform((value) => value ?? "unknown"),
+    is_active: z.boolean().nullish().transform((value) => Boolean(value)),
     processor: z.string().optional(),
     metadata: z.record(z.unknown()).optional(),
     error: z
@@ -66,7 +78,7 @@ const parallelTaskRunResultSchema = z.object({
   }),
   output: z.object({
     type: z.enum(["json", "text"]).optional(),
-    content: z.unknown(),
+    content: z.unknown().optional(),
     basis: z
       .array(z.unknown())
       .nullish()
@@ -188,7 +200,11 @@ export class ParallelClient {
     const payload = await this.requestJson("GET", `/v1beta/findall/runs/${findallId}/result`, undefined, true);
     const parsed = parallelFindAllResultSchema.safeParse(payload);
     if (!parsed.success) {
-      throw new ParallelApiError("Invalid findall result schema.", "PARALLEL_SCHEMA_INVALID");
+      const details = parsed.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+        .join("; ");
+      throw new ParallelApiError(`Invalid findall result schema. ${details}`.trim(), "PARALLEL_SCHEMA_INVALID");
     }
     return parsed.data;
   }
