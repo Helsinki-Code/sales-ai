@@ -93,6 +93,7 @@ type LeadRunStats = {
 };
 
 type FindAllMatchCondition = { name: string; description: string };
+type CompactBasisEntry = { field: string; value: string; citations: string[] };
 
 const TASK_OUTPUT_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -260,6 +261,112 @@ function summarizeEvidence(basis: unknown[]): { citationsCount: number; basisFie
     basisFields: Array.from(new Set(fields)),
     sources: Array.from(sources).slice(0, 10)
   };
+}
+
+function clampText(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+
+function toCompactBasisEntries(basis: unknown[], maxEntries: number): CompactBasisEntry[] {
+  const compact: CompactBasisEntry[] = [];
+
+  for (const row of basis) {
+    if (compact.length >= maxEntries) break;
+    if (!row || typeof row !== "object") continue;
+
+    const fieldRaw = "field" in row ? (row as { field?: unknown }).field : "";
+    const field = typeof fieldRaw === "string" ? clampText(fieldRaw, 60) : "unknown";
+
+    const valueRaw = "value" in row ? (row as { value?: unknown }).value : "";
+    let value = "";
+    if (typeof valueRaw === "string") value = valueRaw;
+    else if (typeof valueRaw === "number" || typeof valueRaw === "boolean") value = String(valueRaw);
+    else value = JSON.stringify(valueRaw ?? "");
+
+    const citations: string[] = [];
+    const rawCitations = "citations" in row ? (row as { citations?: unknown }).citations : [];
+    if (Array.isArray(rawCitations)) {
+      for (const citation of rawCitations) {
+        if (citations.length >= 3) break;
+        if (!citation || typeof citation !== "object") continue;
+        const url = "url" in citation ? (citation as { url?: unknown }).url : "";
+        if (typeof url === "string" && url.trim().length > 0) citations.push(clampText(url, 180));
+      }
+    }
+
+    compact.push({
+      field,
+      value: clampText(value, 280),
+      citations
+    });
+  }
+
+  return compact;
+}
+
+function stringifySize(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return 999999;
+  }
+}
+
+function buildTaskInput(
+  candidate: {
+    name: string;
+    url: string;
+    description: string;
+    basis: unknown[];
+  },
+  sellerProfile: SellerProfile
+): Record<string, unknown> {
+  const basisCount = Array.isArray(candidate.basis) ? candidate.basis.length : 0;
+  let basisEntries = toCompactBasisEntries(candidate.basis, 8);
+  const sellerIndustries = sellerProfile.industries.slice(0, 8).map((item) => clampText(item, 80));
+  let sellerTechStack = sellerProfile.tech_stack.slice(0, 10).map((item) => clampText(item, 80));
+  let sellerDescription = clampText(sellerProfile.description || "", 700);
+  let candidateDescription = clampText(candidate.description || "", 700);
+
+  const makeInput = (): Record<string, unknown> => ({
+    candidate_name: clampText(candidate.name || "", 180),
+    candidate_url: clampText(candidate.url || "", 240),
+    candidate_description: candidateDescription,
+    candidate_basis_count: basisCount,
+    candidate_basis_summary: basisEntries,
+    seller_company: clampText(sellerProfile.company_name || "", 180),
+    seller_description: sellerDescription,
+    seller_industries: sellerIndustries,
+    seller_tech_stack: sellerTechStack
+  });
+
+  let payload = makeInput();
+  const maxChars = 11500;
+
+  if (stringifySize(payload) > maxChars) {
+    basisEntries = basisEntries.slice(0, 4);
+    payload = makeInput();
+  }
+  if (stringifySize(payload) > maxChars) {
+    basisEntries = basisEntries.slice(0, 2);
+    payload = makeInput();
+  }
+  if (stringifySize(payload) > maxChars) {
+    basisEntries = [];
+    payload = makeInput();
+  }
+  if (stringifySize(payload) > maxChars) {
+    candidateDescription = clampText(candidateDescription, 260);
+    sellerDescription = clampText(sellerDescription, 260);
+    payload = makeInput();
+  }
+  if (stringifySize(payload) > maxChars) {
+    sellerTechStack = sellerTechStack.slice(0, 4);
+    payload = makeInput();
+  }
+
+  return payload;
 }
 
 async function withParallelRetry<T>(
@@ -524,19 +631,20 @@ export async function runParallelLeadsEngine(input: LeadsEngineRunInput): Promis
       const candidate = enrichmentCandidates[currentIndex];
       if (!candidate) continue;
 
+      const taskInput = buildTaskInput(
+        {
+          name: candidate.name,
+          url: candidate.url,
+          description: candidate.description,
+          basis: candidate.basis
+        },
+        sellerProfile
+      );
+
       stats.parallelApiCalls += 1;
       const taskRun = await withParallelRetry("task_run_create", stats, () =>
         client.createTaskRun({
-          input: {
-            candidate_name: candidate.name,
-            candidate_url: candidate.url,
-            candidate_description: candidate.description,
-            candidate_basis: candidate.basis,
-            seller_company: sellerProfile.company_name,
-            seller_description: sellerProfile.description,
-            seller_industries: sellerProfile.industries,
-            seller_tech_stack: sellerProfile.tech_stack
-          },
+          input: taskInput,
           processor: env.PARALLEL_TASK_PROCESSOR,
           task_spec: {
             output_schema: {
