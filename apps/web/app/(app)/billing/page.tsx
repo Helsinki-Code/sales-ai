@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 type BillingPlanKey = "starter" | "growth" | "scale";
 type BillingInterval = "monthly" | "annual";
+type UnitPackKey = "standard_1000" | "lead_500";
 
 type CatalogPlan = {
   key: BillingPlanKey;
@@ -14,6 +15,29 @@ type CatalogPlan = {
   annualAmountCents: number;
   monthlyConfigured: boolean;
   annualConfigured: boolean;
+};
+
+type UnitWallet = {
+  currentPlanKey: string | null;
+  cycleStartAt: string | null;
+  cycleEndAt: string | null;
+  includedStandardUnits: number;
+  includedLeadUnits: number;
+  purchasedStandardUnits: number;
+  purchasedLeadUnits: number;
+  consumedStandardUnits: number;
+  consumedLeadUnits: number;
+};
+
+type UnitPackCatalogItem = {
+  key: UnitPackKey;
+  label: string;
+  description: string;
+  unitClass: "standard" | "lead";
+  unitsStandard: number;
+  unitsLead: number;
+  amountCents: number;
+  configuredPriceId: string | null;
 };
 
 type BillingStatusPayload = {
@@ -30,7 +54,9 @@ type BillingStatusPayload = {
     stripePriceId: string | null;
     currentPlan: { plan: BillingPlanKey; interval: BillingInterval } | null;
   };
+  units: UnitWallet;
   catalog: CatalogPlan[];
+  unitPackCatalog: UnitPackCatalogItem[];
 };
 
 function formatUsd(cents: number): string {
@@ -53,14 +79,24 @@ export default function BillingPage() {
 
   const selectedPlanFromQuery = searchParams.get("plan");
   const checkoutStateFromQuery = searchParams.get("checkout");
+  const topupStateFromQuery = searchParams.get("topup");
+  const intentFromQuery = searchParams.get("intent");
 
   useEffect(() => {
     if (checkoutStateFromQuery === "success") {
-      setMessage("Checkout completed. Your billing status will refresh in a few seconds.");
+      setMessage("Subscription checkout completed. Billing status will refresh in a few seconds.");
     } else if (checkoutStateFromQuery === "cancelled") {
-      setMessage("Checkout was cancelled.");
+      setMessage("Subscription checkout was cancelled.");
     }
   }, [checkoutStateFromQuery]);
+
+  useEffect(() => {
+    if (topupStateFromQuery === "success") {
+      setMessage("Unit pack purchase completed. Your balance will refresh in a few seconds.");
+    } else if (topupStateFromQuery === "cancelled") {
+      setMessage("Unit pack checkout was cancelled.");
+    }
+  }, [topupStateFromQuery]);
 
   useEffect(() => {
     if (selectedPlanFromQuery === "starter" || selectedPlanFromQuery === "growth" || selectedPlanFromQuery === "scale") {
@@ -91,12 +127,17 @@ export default function BillingPage() {
   };
 
   useEffect(() => {
-    fetchStatus();
+    void fetchStatus();
   }, []);
 
   const sortedPlans = useMemo(() => {
     if (!statusData) return [];
     return [...statusData.catalog].sort((a, b) => a.monthlyAmountCents - b.monthlyAmountCents);
+  }, [statusData]);
+
+  const sortedPacks = useMemo(() => {
+    if (!statusData) return [];
+    return [...statusData.unitPackCatalog].sort((a, b) => a.amountCents - b.amountCents);
   }, [statusData]);
 
   const handleStartCheckout = async (plan: BillingPlanKey) => {
@@ -122,6 +163,34 @@ export default function BillingPage() {
       window.location.assign(payload.data.url);
     } catch (checkoutError) {
       setError(checkoutError instanceof Error ? checkoutError.message : "Failed to create checkout session");
+    } finally {
+      setIsSubmitting(null);
+    }
+  };
+
+  const handleBuyPack = async (packKey: UnitPackKey) => {
+    setIsSubmitting(`pack:${packKey}`);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/billing/units/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packKey }),
+      });
+
+      const payload = (await response.json()) as
+        | { success?: boolean; data?: { url?: string }; error?: { message?: string } }
+        | null;
+
+      if (!response.ok || !payload?.success || !payload.data?.url) {
+        throw new Error(payload?.error?.message || "Failed to create unit pack checkout session");
+      }
+
+      window.location.assign(payload.data.url);
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : "Failed to create unit pack checkout session");
     } finally {
       setIsSubmitting(null);
     }
@@ -169,7 +238,7 @@ export default function BillingPage() {
         <div className="card">
           <p>Unable to load billing data.</p>
           {error && <p style={{ color: "var(--slate)" }}>{error}</p>}
-          <button className="cta" onClick={fetchStatus}>
+          <button className="cta" onClick={() => void fetchStatus()}>
             Retry
           </button>
         </div>
@@ -177,11 +246,24 @@ export default function BillingPage() {
     );
   }
 
+  const standardRemaining = Math.max(
+    statusData.units.includedStandardUnits +
+      statusData.units.purchasedStandardUnits -
+      statusData.units.consumedStandardUnits,
+    0
+  );
+  const leadRemaining = Math.max(
+    statusData.units.includedLeadUnits +
+      statusData.units.purchasedLeadUnits -
+      statusData.units.consumedLeadUnits,
+    0
+  );
+
   return (
     <main>
       <h1 className="page-title">Billing</h1>
       <p style={{ color: "var(--slate)", marginTop: "-0.25rem", marginBottom: "1.25rem" }}>
-        Organization-level subscription management with a 7-day free trial (card required).
+        Organization-level subscription and unit management.
       </p>
 
       {message && (
@@ -224,13 +306,13 @@ export default function BillingPage() {
         <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <button
             className="cta"
-            onClick={handleOpenPortal}
+            onClick={() => void handleOpenPortal()}
             disabled={!statusData.canManageBilling || isSubmitting === "portal"}
           >
             {isSubmitting === "portal" ? "Opening..." : "Manage Billing"}
           </button>
           <button
-            onClick={fetchStatus}
+            onClick={() => void fetchStatus()}
             style={{
               border: "1px solid var(--border)",
               borderRadius: "999px",
@@ -249,6 +331,62 @@ export default function BillingPage() {
             Billing updates are restricted to org owners and admins.
           </p>
         )}
+      </div>
+
+      <div className="grid grid-3" style={{ marginBottom: "1.5rem" }}>
+        <div className="card">
+          <p style={{ color: "var(--slate)", margin: 0, fontSize: "0.9rem" }}>Standard Units</p>
+          <p style={{ margin: "0.6rem 0 0", fontWeight: 700 }}>
+            {statusData.units.consumedStandardUnits.toLocaleString()} used / {standardRemaining.toLocaleString()} remaining
+          </p>
+          <p style={{ color: "var(--slate)", margin: "0.3rem 0 0", fontSize: "0.84rem" }}>
+            Included {statusData.units.includedStandardUnits.toLocaleString()} + Purchased{" "}
+            {statusData.units.purchasedStandardUnits.toLocaleString()}
+          </p>
+        </div>
+        <div className="card">
+          <p style={{ color: "var(--slate)", margin: 0, fontSize: "0.9rem" }}>Lead Units</p>
+          <p style={{ margin: "0.6rem 0 0", fontWeight: 700 }}>
+            {statusData.units.consumedLeadUnits.toLocaleString()} used / {leadRemaining.toLocaleString()} remaining
+          </p>
+          <p style={{ color: "var(--slate)", margin: "0.3rem 0 0", fontSize: "0.84rem" }}>
+            Included {statusData.units.includedLeadUnits.toLocaleString()} + Purchased{" "}
+            {statusData.units.purchasedLeadUnits.toLocaleString()}
+          </p>
+        </div>
+        <div className="card">
+          <p style={{ color: "var(--slate)", margin: 0, fontSize: "0.9rem" }}>Cycle</p>
+          <p style={{ margin: "0.6rem 0 0", fontWeight: 700 }}>{statusData.units.currentPlanKey ?? "not_set"}</p>
+          <p style={{ color: "var(--slate)", margin: "0.3rem 0 0", fontSize: "0.84rem" }}>
+            {formatDate(statusData.units.cycleStartAt)} → {formatDate(statusData.units.cycleEndAt)}
+          </p>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: "1.5rem", borderColor: intentFromQuery === "topup" ? "#9fb8ff" : "var(--border)" }}>
+        <h2 style={{ marginTop: 0, marginBottom: "1rem" }}>Buy Extra Units</h2>
+        <p style={{ color: "var(--slate)", marginTop: 0 }}>
+          Fixed packs are valid for the current billing cycle only. Unused pack units do not roll over.
+        </p>
+        <div className="grid grid-3">
+          {sortedPacks.map((pack) => (
+            <article className="card" key={pack.key}>
+              <h3>{pack.label}</h3>
+              <p style={{ color: "var(--slate)", minHeight: "2.6rem" }}>{pack.description}</p>
+              <div style={{ marginBottom: "0.8rem" }}>
+                <strong style={{ fontSize: "1.45rem" }}>{formatUsd(pack.amountCents)}</strong>
+                <span style={{ color: "var(--slate)" }}>/one-time</span>
+              </div>
+              <button
+                className="cta"
+                disabled={!statusData.canManageBilling || Boolean(isSubmitting)}
+                onClick={() => void handleBuyPack(pack.key)}
+              >
+                {isSubmitting === `pack:${pack.key}` ? "Redirecting..." : "Buy Pack"}
+              </button>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -301,7 +439,7 @@ export default function BillingPage() {
                 <button
                   className="cta"
                   disabled={!statusData.canManageBilling || !configured || Boolean(isSubmitting)}
-                  onClick={() => handleStartCheckout(plan.key)}
+                  onClick={() => void handleStartCheckout(plan.key)}
                 >
                   {isSubmitting === `checkout:${plan.key}` ? "Redirecting..." : "Start 7-day trial"}
                 </button>

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import { asyncSalesEndpoints, executeSkill, type SalesEndpoint } from "@sales-ai/shared";
 import { requireApiKeyOrOAuth } from "../middleware/api-or-oauth-auth.middleware.js";
@@ -10,8 +10,55 @@ import { resolveModelForEndpoint } from "../services/model-policy.service.js";
 import { createJobRecord, findJobByIdempotency } from "../services/jobs.service.js";
 import { salesQueue } from "../jobs/queue.js";
 import { recordUsageEvent } from "../services/usage.service.js";
+import {
+  BillingNotConfiguredError,
+  InsufficientUnitsError,
+  consumeUnitsForCompletion,
+  ensureUnitsAvailableForRequest,
+  reverseConsumedUnits
+} from "../services/unit-billing.service.js";
 
 export const salesRouter = Router();
+
+function resolveBuyUnitsUrl(originHeader: string | undefined): string {
+  const origin = originHeader?.trim();
+  if (origin) {
+    return `${origin.replace(/\/+$/, "")}/billing?intent=topup`;
+  }
+
+  const configured =
+    process.env.BILLING_PORTAL_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL;
+
+  if (configured && configured.trim().length > 0) {
+    return `${configured.replace(/\/+$/, "")}/billing?intent=topup`;
+  }
+
+  return "/billing?intent=topup";
+}
+
+function insufficientUnitsResponse(
+  res: Response,
+  error: InsufficientUnitsError,
+  originHeader: string | undefined
+) {
+  return res.status(402).json({
+    success: false,
+    error: {
+      code: "INSUFFICIENT_UNITS",
+      message: "Insufficient unit balance for this operation.",
+      details: {
+        remaining_standard_units: error.remaining.remainingStandardUnits,
+        remaining_lead_units: error.remaining.remainingLeadUnits,
+        required_standard_units: error.required.standardUnits,
+        required_lead_units: error.required.leadUnits,
+        next_cycle_at: error.remaining.nextCycleAt,
+        buy_units_url: resolveBuyUnitsUrl(originHeader)
+      }
+    }
+  });
+}
 
 salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMiddleware, async (req, res, next) => {
   try {
@@ -44,6 +91,8 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
           pollUrl: `/api/v1/jobs/${existing.id}`
         });
       }
+
+      await ensureUnitsAvailableForRequest(req.auth.orgId, endpoint, parsedBody);
 
       const jobId = await createJobRecord({
         orgId: req.auth.orgId,
@@ -78,6 +127,8 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
       });
     }
 
+    await ensureUnitsAvailableForRequest(req.auth.orgId, endpoint, parsedBody);
+
     const anthropicApiKey = await getAnthropicApiKey(req.auth.workspaceId);
     const result = await executeSkill({
       endpoint,
@@ -87,17 +138,51 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
       redis
     });
 
-    await recordUsageEvent({
+    const consumed = await consumeUnitsForCompletion({
       orgId: req.auth.orgId,
       workspaceId: req.auth.workspaceId,
       apiKeyId: req.auth.apiKeyId,
       endpoint,
-      model: result.model,
-      tokens: result.tokens,
-      durationMs: result.durationMs,
       requestId: req.requestId,
-      status: "success"
+      resultData: result.data,
+      fallbackPayload: parsedBody,
+      idempotencyKey: `sync:${req.requestId}:consume`,
+      unitBasis: "sync_success"
     });
+
+    try {
+      await recordUsageEvent({
+        orgId: req.auth.orgId,
+        workspaceId: req.auth.workspaceId,
+        apiKeyId: req.auth.apiKeyId,
+        endpoint,
+        model: result.model,
+        tokens: result.tokens,
+        durationMs: result.durationMs,
+        requestId: req.requestId,
+        status: "success",
+        tokenCostUsd: 0,
+        managedEstimatedCostUsd: 0,
+        totalCostUsd: 0,
+        parallelApiCalls: 0,
+        parallelEnrichmentRuns: 0,
+        standardUnitsConsumed: consumed.standardUnits,
+        leadUnitsConsumed: consumed.leadUnits
+      });
+    } catch (usageError) {
+      await reverseConsumedUnits({
+        orgId: req.auth.orgId,
+        workspaceId: req.auth.workspaceId,
+        apiKeyId: req.auth.apiKeyId,
+        requestId: req.requestId,
+        endpoint,
+        consumed,
+        unitBasis: "sync_success",
+        idempotencyKey: `sync:${req.requestId}:reverse`,
+        reason: "usage_event_insert_failed"
+      });
+      throw usageError;
+    }
 
     return res.json({
       success: true,
@@ -111,6 +196,23 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
       }
     });
   } catch (error) {
+    if (error instanceof InsufficientUnitsError) {
+      return insufficientUnitsResponse(res, error, req.header("origin"));
+    }
+
+    if (error instanceof BillingNotConfiguredError) {
+      return res.status(402).json({
+        success: false,
+        error: {
+          code: "BILLING_REQUIRED",
+          message: "Billing is not configured for this organization.",
+          details: {
+            buy_units_url: resolveBuyUnitsUrl(req.header("origin"))
+          }
+        }
+      });
+    }
+
     return next(error);
   }
 });

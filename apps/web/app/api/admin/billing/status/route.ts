@@ -4,6 +4,8 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { canManageBilling, getOrgRoleForUser } from "@/lib/billing/membership";
 import { getBillingPlanCatalog, resolvePlanFromPriceId } from "@/lib/billing/plans";
 import { getBillingSnapshotForOrg, isBillingActiveStatus } from "@/lib/billing/status";
+import { getUnitPackCatalog } from "@/lib/billing/unit-packs";
+import { getServiceRoleClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
@@ -31,6 +33,17 @@ export async function GET() {
 
     const billing = await getBillingSnapshotForOrg(orgId);
     const currentPlan = resolvePlanFromPriceId(billing.stripePriceId);
+    const admin = getServiceRoleClient();
+    const { data: unitWallet, error: unitWalletError } = await admin
+      .from("org_billing")
+      .select(
+        "current_plan_key,cycle_start_at,cycle_end_at,included_standard_units,included_lead_units,purchased_standard_units,purchased_lead_units,consumed_standard_units,consumed_lead_units"
+      )
+      .eq("org_id", orgId)
+      .maybeSingle();
+    if (unitWalletError) {
+      throw new Error(`Failed to load unit wallet: ${unitWalletError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -43,7 +56,19 @@ export async function GET() {
           ...billing,
           currentPlan,
         },
+        units: {
+          currentPlanKey: unitWallet?.current_plan_key ?? null,
+          cycleStartAt: unitWallet?.cycle_start_at ?? null,
+          cycleEndAt: unitWallet?.cycle_end_at ?? null,
+          includedStandardUnits: unitWallet?.included_standard_units ?? 0,
+          includedLeadUnits: unitWallet?.included_lead_units ?? 0,
+          purchasedStandardUnits: unitWallet?.purchased_standard_units ?? 0,
+          purchasedLeadUnits: unitWallet?.purchased_lead_units ?? 0,
+          consumedStandardUnits: unitWallet?.consumed_standard_units ?? 0,
+          consumedLeadUnits: unitWallet?.consumed_lead_units ?? 0,
+        },
         catalog: getBillingPlanCatalog(),
+        unitPackCatalog: getUnitPackCatalog(),
       },
     });
   } catch (error) {

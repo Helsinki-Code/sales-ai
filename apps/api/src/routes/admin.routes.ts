@@ -91,7 +91,7 @@ adminRouter.get("/workspaces/:workspaceId/usage", async (req, res, next) => {
 
     let query = supabaseAdmin
       .from("usage_daily_rollups")
-      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,standard_units_consumed,lead_units_consumed")
       .eq("workspace_id", workspaceId)
       .order("usage_date", { ascending: false })
       .limit(180);

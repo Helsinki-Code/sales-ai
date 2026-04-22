@@ -7,5 +7,6 @@ export * from "./python/bridge.js";
 export * from "./parallel/client.js";
 export * from "./leads/scoring.js";
 export * from "./leads/types.js";
+export * from "./billing/units.js";
 export * from "./utils/crypto.js";
 export * from "./utils/json.js";

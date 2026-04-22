@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/billing/stripe";
 import {
+  applyUnitPackPurchaseFromCheckoutSession,
   hasProcessedStripeEvent,
   recordStripeEventProcessed,
   syncOrgBillingFromSubscription,
@@ -52,19 +53,28 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        if (session.mode !== "subscription" || !session.subscription) break;
+        if (session.mode === "subscription" && session.subscription) {
+          const subscriptionId =
+            typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const syncResult = await syncOrgBillingFromSubscription(
+            subscription,
+            extractOrgIdFromMetadata(session.metadata),
+            { eventId: event.id, eventType: event.type }
+          );
 
-        const subscriptionId =
-          typeof session.subscription === "string" ? session.subscription : session.subscription.id;
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const syncResult = await syncOrgBillingFromSubscription(
-          subscription,
-          extractOrgIdFromMetadata(session.metadata)
-        );
-
-        processedOrgId = syncResult.orgId;
-        processedCustomerId = syncResult.stripeCustomerId;
-        processedSubscriptionId = syncResult.stripeSubscriptionId;
+          processedOrgId = syncResult.orgId;
+          processedCustomerId = syncResult.stripeCustomerId;
+          processedSubscriptionId = syncResult.stripeSubscriptionId;
+        } else if (session.mode === "payment" && session.metadata?.purchase_type === "unit_pack") {
+          const topupResult = await applyUnitPackPurchaseFromCheckoutSession(session, {
+            eventId: event.id,
+            eventType: event.type,
+          });
+          processedOrgId = topupResult.orgId;
+          processedCustomerId = topupResult.stripeCustomerId;
+          processedSubscriptionId = topupResult.stripeSubscriptionId;
+        }
         break;
       }
 
@@ -73,7 +83,10 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.deleted":
       case "customer.subscription.trial_will_end": {
         const subscription = event.data.object;
-        const syncResult = await syncOrgBillingFromSubscription(subscription);
+        const syncResult = await syncOrgBillingFromSubscription(subscription, null, {
+          eventId: event.id,
+          eventType: event.type,
+        });
         processedOrgId = syncResult.orgId;
         processedCustomerId = syncResult.stripeCustomerId;
         processedSubscriptionId = syncResult.stripeSubscriptionId;
@@ -86,7 +99,10 @@ export async function POST(request: NextRequest) {
         if (!invoice.subscription || typeof invoice.subscription !== "string") break;
 
         const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-        const syncResult = await syncOrgBillingFromSubscription(subscription);
+        const syncResult = await syncOrgBillingFromSubscription(subscription, null, {
+          eventId: event.id,
+          eventType: event.type,
+        });
         processedOrgId = syncResult.orgId;
         processedCustomerId = syncResult.stripeCustomerId ?? invoice.customer ?? null;
         processedSubscriptionId = syncResult.stripeSubscriptionId;

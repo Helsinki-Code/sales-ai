@@ -4,6 +4,7 @@ import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
 import { LeadsEngineError, runParallelLeadsEngine } from "./leads-engine.js";
+import { consumeUnitsForJob, reverseUnitsForJob } from "./unit-billing.js";
 
 export type SalesJobPayload = {
   jobId: string;
@@ -114,6 +115,10 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     enrichmentRuns: 0,
     estimatedCostUsd: 0
   };
+  let consumedUnits = {
+    standardUnits: 0,
+    leadUnits: 0
+  };
 
   if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "parallel_v1") {
     const leadsResult = await runParallelLeadsEngine({
@@ -162,7 +167,61 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     };
   }
 
-  await updateRunningState("persisting_result", 96, "Persisting final result...");
+  await updateRunningState("billing_metering", 94, "Applying unit metering...");
+  consumedUnits = await consumeUnitsForJob({
+    orgId: payload.orgId,
+    workspaceId: payload.workspaceId,
+    apiKeyId: payload.apiKeyId,
+    endpoint: payload.endpoint,
+    requestId: payload.requestId,
+    jobId: payload.jobId,
+    resultData,
+    fallbackPayload: payload.input,
+    idempotencyKey: `job:${payload.jobId}:consume`,
+    unitBasis: payload.endpoint === "leads" ? "per_result" : "per_request"
+  });
+
+  try {
+    await supabaseAdmin.from("usage_events").insert({
+      org_id: payload.orgId,
+      workspace_id: payload.workspaceId,
+      api_key_id: payload.apiKeyId,
+      endpoint: payload.endpoint,
+      model,
+      input_tokens: tokens.inputTokens,
+      output_tokens: tokens.outputTokens,
+      cache_creation_input_tokens: tokens.cacheCreationInputTokens,
+      cache_read_input_tokens: tokens.cacheReadInputTokens,
+      duration_ms: durationMs,
+      request_id: payload.requestId,
+      status: "success",
+      cost_usd: parallelUsage.estimatedCostUsd,
+      token_cost_usd: 0,
+      managed_estimated_cost_usd: parallelUsage.estimatedCostUsd,
+      total_cost_usd: parallelUsage.estimatedCostUsd,
+      parallel_api_calls: parallelUsage.apiCalls,
+      parallel_enrichment_runs: parallelUsage.enrichmentRuns,
+      parallel_estimated_cost_usd: parallelUsage.estimatedCostUsd,
+      standard_units_consumed: consumedUnits.standardUnits,
+      lead_units_consumed: consumedUnits.leadUnits
+    });
+  } catch (usageError) {
+    await reverseUnitsForJob({
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      apiKeyId: payload.apiKeyId,
+      endpoint: payload.endpoint,
+      requestId: payload.requestId,
+      jobId: payload.jobId,
+      consumed: consumedUnits,
+      unitBasis: payload.endpoint === "leads" ? "per_result" : "per_request",
+      idempotencyKey: `job:${payload.jobId}:reverse`,
+      reason: "usage_event_insert_failed"
+    });
+    throw usageError;
+  }
+
+  await updateRunningState("persisting_result", 97, "Persisting final result...");
 
   await supabaseAdmin.from("jobs").update({
     status: "complete",
@@ -173,24 +232,6 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
   }).eq("id", payload.jobId);
 
   await pushEvent(payload.jobId, payload.workspaceId, "complete", 100, "Job completed.");
-
-  await supabaseAdmin.from("usage_events").insert({
-    org_id: payload.orgId,
-    workspace_id: payload.workspaceId,
-    api_key_id: payload.apiKeyId,
-    endpoint: payload.endpoint,
-    model,
-    input_tokens: tokens.inputTokens,
-    output_tokens: tokens.outputTokens,
-    cache_creation_input_tokens: tokens.cacheCreationInputTokens,
-    cache_read_input_tokens: tokens.cacheReadInputTokens,
-    duration_ms: durationMs,
-    request_id: payload.requestId,
-    status: "success",
-    parallel_api_calls: parallelUsage.apiCalls,
-    parallel_enrichment_runs: parallelUsage.enrichmentRuns,
-    parallel_estimated_cost_usd: parallelUsage.estimatedCostUsd
-  });
 }
 
 export async function handleSalesJobFailure(job: Job<SalesJobPayload> | undefined, error: Error): Promise<void> {

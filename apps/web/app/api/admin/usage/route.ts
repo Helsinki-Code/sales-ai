@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceId } from "@/lib/workspace";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,14 +14,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const workspaceId = await getWorkspaceId(user.id);
+    const { workspaceId, orgId } = await getWorkspaceContext(user.id);
 
     const from = request.nextUrl.searchParams.get("from");
     const to = request.nextUrl.searchParams.get("to");
 
     let query = supabase
       .from("usage_daily_rollups")
-      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,standard_units_consumed,lead_units_consumed")
       .eq("workspace_id", workspaceId)
       .order("usage_date", { ascending: false })
       .limit(180);
@@ -52,7 +52,30 @@ export async function GET(request: NextRequest) {
       return { ...row, model };
     });
 
-    return NextResponse.json({ success: true, data: sanitized });
+    const { data: unitWallet, error: unitWalletError } = await supabase
+      .from("org_billing")
+      .select("current_plan_key,cycle_start_at,cycle_end_at,included_standard_units,included_lead_units,purchased_standard_units,purchased_lead_units,consumed_standard_units,consumed_lead_units")
+      .eq("org_id", orgId)
+      .maybeSingle();
+    if (unitWalletError) {
+      throw new Error(`Failed to load unit wallet: ${unitWalletError.message}`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: sanitized,
+      units: {
+        current_plan_key: unitWallet?.current_plan_key ?? null,
+        cycle_start_at: unitWallet?.cycle_start_at ?? null,
+        cycle_end_at: unitWallet?.cycle_end_at ?? null,
+        included_standard_units: unitWallet?.included_standard_units ?? 0,
+        included_lead_units: unitWallet?.included_lead_units ?? 0,
+        purchased_standard_units: unitWallet?.purchased_standard_units ?? 0,
+        purchased_lead_units: unitWallet?.purchased_lead_units ?? 0,
+        consumed_standard_units: unitWallet?.consumed_standard_units ?? 0,
+        consumed_lead_units: unitWallet?.consumed_lead_units ?? 0
+      }
+    });
   } catch (error) {
     console.error("Usage GET proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";

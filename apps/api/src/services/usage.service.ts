@@ -11,7 +11,13 @@ export async function recordUsageEvent(input: {
   durationMs: number;
   requestId: string;
   status: "success" | "failed";
-  costUsd?: number;
+  tokenCostUsd?: number;
+  managedEstimatedCostUsd?: number;
+  totalCostUsd?: number;
+  parallelApiCalls?: number;
+  parallelEnrichmentRuns?: number;
+  standardUnitsConsumed?: number;
+  leadUnitsConsumed?: number;
 }): Promise<void> {
   await supabaseAdmin.from("usage_events").insert({
     org_id: input.orgId,
@@ -26,6 +32,13 @@ export async function recordUsageEvent(input: {
     duration_ms: input.durationMs,
     request_id: input.requestId,
     status: input.status,
-    cost_usd: input.costUsd ?? null
+    cost_usd: input.totalCostUsd ?? null,
+    token_cost_usd: input.tokenCostUsd ?? null,
+    managed_estimated_cost_usd: input.managedEstimatedCostUsd ?? null,
+    total_cost_usd: input.totalCostUsd ?? null,
+    parallel_api_calls: input.parallelApiCalls ?? 0,
+    parallel_enrichment_runs: input.parallelEnrichmentRuns ?? 0,
+    standard_units_consumed: input.standardUnitsConsumed ?? 0,
+    lead_units_consumed: input.leadUnitsConsumed ?? 0
   });
 }
