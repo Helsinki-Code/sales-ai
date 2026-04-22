@@ -14,12 +14,19 @@ const parallelRunStatusSchema = z.object({
 
 const parallelFindAllCandidateSchema = z.object({
   candidate_id: z.string(),
-  name: z.string().optional().default(""),
-  url: z.string().optional().default(""),
-  description: z.string().optional().default(""),
-  match_status: z.enum(["generated", "matched", "unmatched"]),
-  output: z.record(z.unknown()).optional().default({}),
-  basis: z.array(z.unknown()).optional().default([])
+  name: z.string().nullish().transform((value) => value ?? ""),
+  url: z.string().nullish().transform((value) => value ?? ""),
+  description: z.string().nullish().transform((value) => value ?? ""),
+  // FindAll is still in beta and may introduce new statuses; treat unknown values as non-fatal.
+  match_status: z.string().nullish().transform((value) => value ?? "generated"),
+  output: z
+    .record(z.unknown())
+    .nullish()
+    .transform((value) => (value && typeof value === "object" ? value : {})),
+  basis: z
+    .array(z.unknown())
+    .nullish()
+    .transform((value) => (Array.isArray(value) ? value : []))
 });
 
 const parallelFindAllRunSchema = z.object({
@@ -60,7 +67,10 @@ const parallelTaskRunResultSchema = z.object({
   output: z.object({
     type: z.enum(["json", "text"]).optional(),
     content: z.unknown(),
-    basis: z.array(z.unknown()).optional()
+    basis: z
+      .array(z.unknown())
+      .nullish()
+      .transform((value) => (Array.isArray(value) ? value : []))
   })
 });
 
@@ -264,4 +274,3 @@ export class ParallelClient {
     }
   }
 }
-
