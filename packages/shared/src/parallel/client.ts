@@ -45,7 +45,9 @@ const parallelFindAllRunSchema = z.object({
 
 const parallelFindAllResultSchema = z.object({
   findall_id: safeText.transform((value) => value || "unknown_findall"),
-  status: parallelRunStatusSchema,
+  status: parallelRunStatusSchema
+    .nullish()
+    .transform((value) => value ?? { status: "unknown", is_active: false }),
   candidates: z.unknown().transform((value) => {
     if (!Array.isArray(value)) return [];
     const parsed = value
