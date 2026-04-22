@@ -1,4 +1,30 @@
 {
+  "aes-256-gcm-api-key-storage": [
+    {
+      "id": "aes-256-gcm-api-key-storage-img-01",
+      "index": 1,
+      "promptHash": "ec0b1a2d6f99f51a247b811bd6f147b30a47bde48d6d44c609cd71958d3da2bc",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\aes-256-gcm-api-key-storage\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.324775+00:00"
+    },
+    {
+      "id": "aes-256-gcm-api-key-storage-img-02",
+      "index": 2,
+      "promptHash": "08baf893faeb0258c78e99aedb28335b3cddabdf1a41cf6541f695fe1c40353a",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\aes-256-gcm-api-key-storage\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.325403+00:00"
+    },
+    {
+      "id": "aes-256-gcm-api-key-storage-img-03",
+      "index": 3,
+      "promptHash": "5fcfca83a66ef7f1aa4614871c22d287e35d38039ba0b4297e41aa2c226b5ee4",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\aes-256-gcm-api-key-storage\\img-03.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.325957+00:00"
+    }
+  ],
   "ai-outreach-email-api": [
     {
       "id": "ai-outreach-email-api-img-01",
@@ -6,7 +32,7 @@
       "promptHash": "25d425dae1d9ffa75879ed43b8c786bbe558cbef373049a9abcc96839f139750",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-outreach-email-api\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:50.370780+00:00"
+      "updatedAt": "2026-04-22T17:37:00.327596+00:00"
     },
     {
       "id": "ai-outreach-email-api-img-02",
@@ -14,7 +40,7 @@
       "promptHash": "04af77827e5f9ec5c9331f9ca836d9de4dc36bd914e0895c0a2795c09efd3ffa",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-outreach-email-api\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:50.691408+00:00"
+      "updatedAt": "2026-04-22T17:37:00.327802+00:00"
     },
     {
       "id": "ai-outreach-email-api-img-03",
@@ -22,7 +48,25 @@
       "promptHash": "580a870e88979c7d8ac0885ddf1d3f84a3cc71737d0c3e63862741a171041543",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-outreach-email-api\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:50.995752+00:00"
+      "updatedAt": "2026-04-22T17:37:00.328074+00:00"
+    }
+  ],
+  "ai-sales-tool-real-cost-llm-markup": [
+    {
+      "id": "ai-sales-tool-real-cost-llm-markup-img-01",
+      "index": 1,
+      "promptHash": "1e8386c83f74106d138345e4b66f593e6b1aead5ddf32ccf5be817a994605193",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-sales-tool-real-cost-llm-markup\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.330404+00:00"
+    },
+    {
+      "id": "ai-sales-tool-real-cost-llm-markup-img-02",
+      "index": 2,
+      "promptHash": "486900e9142d2832c2897f9fa756b877ae94723f44d010cdb0bbbd12b3312cb7",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-sales-tool-real-cost-llm-markup\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.330949+00:00"
     }
   ],
   "add-ai-to-sales-workflow": [
@@ -32,7 +76,7 @@
       "promptHash": "5a69c625f6a9e54002e99c579e9d9fe370dafa7911eee1f288e80b3d73ee6344",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-sales-workflow\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:51.300904+00:00"
+      "updatedAt": "2026-04-22T17:37:00.332868+00:00"
     },
     {
       "id": "add-ai-to-sales-workflow-img-02",
@@ -40,7 +84,7 @@
       "promptHash": "e9a552bb6534f171a6d835a8ab6906c593cdf8d5719a28d1c3973a38991a5b28",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-sales-workflow\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:51.612766+00:00"
+      "updatedAt": "2026-04-22T17:37:00.333076+00:00"
     },
     {
       "id": "add-ai-to-sales-workflow-img-03",
@@ -48,7 +92,7 @@
       "promptHash": "d5fe68712da2dbd923350cb70dcb9ad736d03f2203614703d7e718101d905352",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-sales-workflow\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:51.920659+00:00"
+      "updatedAt": "2026-04-22T17:37:00.333270+00:00"
     },
     {
       "id": "add-ai-to-sales-workflow-img-04",
@@ -56,7 +100,7 @@
       "promptHash": "cec1c13e8857b67cf56ed80e6d9a91e0c432c1fa2f1fd1699e07066c0dc46980",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-sales-workflow\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:52.215194+00:00"
+      "updatedAt": "2026-04-22T17:37:00.333505+00:00"
     }
   ],
   "anthropic-api-sales-use-cases": [
@@ -66,7 +110,7 @@
       "promptHash": "7447bcd9661dee826ac9e8e60d3282d46e8fa65a06019a0a6558f3da0723075e",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\anthropic-api-sales-use-cases\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:52.532907+00:00"
+      "updatedAt": "2026-04-22T17:37:00.335846+00:00"
     },
     {
       "id": "anthropic-api-sales-use-cases-img-02",
@@ -74,7 +118,7 @@
       "promptHash": "8e8fc585b77292c3d9d3631ed2beb8c92e5c88804a6f19a4de636dcf63d86d57",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\anthropic-api-sales-use-cases\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:52.839399+00:00"
+      "updatedAt": "2026-04-22T17:37:00.336073+00:00"
     },
     {
       "id": "anthropic-api-sales-use-cases-img-03",
@@ -82,7 +126,7 @@
       "promptHash": "551e5954f57ac8b427444e683ccd3af345f77fc0dbc5690de920d1453c7a92a5",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\anthropic-api-sales-use-cases\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:53.118066+00:00"
+      "updatedAt": "2026-04-22T17:37:00.336269+00:00"
     }
   ],
   "sales-prospecting-api-async": [
@@ -92,7 +136,7 @@
       "promptHash": "b14d3083ac46cded16d1f02c19bb0be265e77d9550bcc1b3a6f4bc9f82f4ad86",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-prospecting-api-async\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:53.431650+00:00"
+      "updatedAt": "2026-04-22T17:37:00.337893+00:00"
     },
     {
       "id": "sales-prospecting-api-async-img-02",
@@ -100,7 +144,7 @@
       "promptHash": "0a1d3d2b52aa65d7bc93208197e067a70c26dd5bd913198c3f114bb663f819a0",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-prospecting-api-async\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:53.754492+00:00"
+      "updatedAt": "2026-04-22T17:37:00.338100+00:00"
     },
     {
       "id": "sales-prospecting-api-async-img-03",
@@ -108,7 +152,43 @@
       "promptHash": "ca20a699add8614c44031cb595790005746aea161f0a950862cea35827b912d0",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-prospecting-api-async\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:54.073623+00:00"
+      "updatedAt": "2026-04-22T17:37:00.338289+00:00"
+    }
+  ],
+  "async-webhook-delivery-api": [
+    {
+      "id": "async-webhook-delivery-api-img-01",
+      "index": 1,
+      "promptHash": "b83dc67a7517d31a872f1fb36d26c5e5296430fca9b653339234974c55fbeaa6",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\async-webhook-delivery-api\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.340681+00:00"
+    },
+    {
+      "id": "async-webhook-delivery-api-img-02",
+      "index": 2,
+      "promptHash": "679c81e5c2a77bd355dbf1219d3ca28a908a7bd5cd038ecb1172ab01f2da656d",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\async-webhook-delivery-api\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.341295+00:00"
+    }
+  ],
+  "sales-competitor-battle-card-api": [
+    {
+      "id": "sales-competitor-battle-card-api-img-01",
+      "index": 1,
+      "promptHash": "eb077613b5c16d4cf65a77da1ae0a1b9c55d0b799a4103f6c4107381d7ffbfe1",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-competitor-battle-card-api\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.343488+00:00"
+    },
+    {
+      "id": "sales-competitor-battle-card-api-img-02",
+      "index": 2,
+      "promptHash": "964e8887cf619fcaba090be7c3d682368ea778731572c241b837ca68f2755849",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-competitor-battle-card-api\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.344642+00:00"
     }
   ],
   "byok-ai-tool": [
@@ -118,7 +198,7 @@
       "promptHash": "a3317cd406c0da758068aea2fe40549b10d10e3f69688dfc081a75c712ecda9f",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\byok-ai-tool\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:54.403976+00:00"
+      "updatedAt": "2026-04-22T17:37:00.347153+00:00"
     },
     {
       "id": "byok-ai-tool-img-02",
@@ -126,7 +206,7 @@
       "promptHash": "91576c50d29c1e46f5f23e0c72e0c189ed61f920761c49f0a8b88232058bb5b2",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\byok-ai-tool\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:54.731088+00:00"
+      "updatedAt": "2026-04-22T17:37:00.347448+00:00"
     },
     {
       "id": "byok-ai-tool-img-03",
@@ -134,7 +214,7 @@
       "promptHash": "a8532d718fb8db69f213e4ae31949a9849dca72e8e51a9bef482fe83e0858cc4",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\byok-ai-tool\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:55.061072+00:00"
+      "updatedAt": "2026-04-22T17:37:00.347734+00:00"
     },
     {
       "id": "byok-ai-tool-img-04",
@@ -142,7 +222,7 @@
       "promptHash": "9fab57a69d8b5d1b36c82340abccae4dc155a02a8d0bcf07966bb7563dc694b4",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\byok-ai-tool\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:55.364583+00:00"
+      "updatedAt": "2026-04-22T17:37:00.347999+00:00"
     },
     {
       "id": "byok-ai-tool-img-05",
@@ -150,7 +230,7 @@
       "promptHash": "5b5b349f44c6d472ec46b0fd68e38b5da184cdb674bb35a91acc09d9f815958d",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\byok-ai-tool\\img-05.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:55.683472+00:00"
+      "updatedAt": "2026-04-22T17:37:00.348272+00:00"
     }
   ],
   "bring-your-own-key-llm-saas": [
@@ -160,7 +240,7 @@
       "promptHash": "0d8910e2aa4ed7273e87fa860aea3bd74f2e3f9b5bcee9eb629fb91cc2656eab",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\bring-your-own-key-llm-saas\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:55.980569+00:00"
+      "updatedAt": "2026-04-22T17:37:00.350414+00:00"
     },
     {
       "id": "bring-your-own-key-llm-saas-img-02",
@@ -168,7 +248,7 @@
       "promptHash": "7d0e1e4e484575ba15b0b1d7fc5e7ef4f9dd229665e93f39f36f9da6e6b9dc6f",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\bring-your-own-key-llm-saas\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:56.294461+00:00"
+      "updatedAt": "2026-04-22T17:37:00.350615+00:00"
     },
     {
       "id": "bring-your-own-key-llm-saas-img-03",
@@ -176,7 +256,7 @@
       "promptHash": "d70d0aec6ac173910f57b560e7a6843115ab4dd7559a7892a3464a92c9cc65d1",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\bring-your-own-key-llm-saas\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:56.604501+00:00"
+      "updatedAt": "2026-04-22T17:37:00.350809+00:00"
     },
     {
       "id": "bring-your-own-key-llm-saas-img-04",
@@ -184,7 +264,7 @@
       "promptHash": "1ac4d6bf551844a8c99b7ff5de2abecc3f66e96769b7103f1f2b76c3010f89f7",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\bring-your-own-key-llm-saas\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:56.924009+00:00"
+      "updatedAt": "2026-04-22T17:37:00.351021+00:00"
     },
     {
       "id": "bring-your-own-key-llm-saas-img-05",
@@ -192,7 +272,7 @@
       "promptHash": "a012c0380ee236b887100fbf085d78705a33267a181ffc72795bfa316d7f3e7d",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\bring-your-own-key-llm-saas\\img-05.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:57.239196+00:00"
+      "updatedAt": "2026-04-22T17:37:00.351215+00:00"
     }
   ],
   "claude-api-sales-automation": [
@@ -202,7 +282,7 @@
       "promptHash": "2b4107994f5c7e65c59547779e8524557971fd501b53e0d0330abf64217af503",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\claude-api-sales-automation\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:57.555729+00:00"
+      "updatedAt": "2026-04-22T17:37:00.352918+00:00"
     },
     {
       "id": "claude-api-sales-automation-img-02",
@@ -210,7 +290,7 @@
       "promptHash": "c0c308720043604809c8a63e1896de77a328538dc4382bb0f664ec164d9c6199",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\claude-api-sales-automation\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:57.858364+00:00"
+      "updatedAt": "2026-04-22T17:37:00.353117+00:00"
     },
     {
       "id": "claude-api-sales-automation-img-03",
@@ -218,7 +298,7 @@
       "promptHash": "389ce8522e793b5343a1efb7a7a1141e5c6075dae695164e14c65908c04261ba",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\claude-api-sales-automation\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:58.174338+00:00"
+      "updatedAt": "2026-04-22T17:37:00.353310+00:00"
     }
   ],
   "clay-apollo-alternative-developers": [
@@ -228,7 +308,7 @@
       "promptHash": "6e2ae05358c4f707bdbbb138c22a8cf5b84b6ec33b02238af799ff08046c45ed",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\clay-apollo-alternative-developers\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:58.470370+00:00"
+      "updatedAt": "2026-04-22T17:37:00.354871+00:00"
     },
     {
       "id": "clay-apollo-alternative-developers-img-02",
@@ -236,7 +316,7 @@
       "promptHash": "581f70849eb5bcf564dca8687f1d4368b0ddc64da1b13c643bf83857c579bb81",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\clay-apollo-alternative-developers\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:58.791375+00:00"
+      "updatedAt": "2026-04-22T17:37:00.355081+00:00"
     },
     {
       "id": "clay-apollo-alternative-developers-img-03",
@@ -244,7 +324,7 @@
       "promptHash": "646480e692e9243f88b4fe93ae1891d3f547614f35e9b94328b62dd7a3ee29d4",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\clay-apollo-alternative-developers\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:59.094834+00:00"
+      "updatedAt": "2026-04-22T17:37:00.355285+00:00"
     },
     {
       "id": "clay-apollo-alternative-developers-img-04",
@@ -252,7 +332,43 @@
       "promptHash": "bbc3e4a8544f4034b642aa9e09beb958d1f8d20fef027bc9ee8ee3afbde14619",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\clay-apollo-alternative-developers\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:59.417519+00:00"
+      "updatedAt": "2026-04-22T17:37:00.355495+00:00"
+    }
+  ],
+  "add-ai-to-hubspot-api": [
+    {
+      "id": "add-ai-to-hubspot-api-img-01",
+      "index": 1,
+      "promptHash": "ada5e40e401adaafd9014db52343640a17344d7f622834d714811c437ddbc284",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-hubspot-api\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.357407+00:00"
+    },
+    {
+      "id": "add-ai-to-hubspot-api-img-02",
+      "index": 2,
+      "promptHash": "ab5dd952759fdde4894a3ebd6a0c419f28430978638d8f6f9ad778503342dad8",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\add-ai-to-hubspot-api\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.357795+00:00"
+    }
+  ],
+  "icp-scoring-api-automation": [
+    {
+      "id": "icp-scoring-api-automation-img-01",
+      "index": 1,
+      "promptHash": "5a43416ad89168847f00a54f61e9956ce2f748e18406a5d67cbc3cfeda9b7710",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\icp-scoring-api-automation\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.359497+00:00"
+    },
+    {
+      "id": "icp-scoring-api-automation-img-02",
+      "index": 2,
+      "promptHash": "4527ed911bb533aef8af17cbdf1b6138f220837f8f8df44edffcf8b1433ef512",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\icp-scoring-api-automation\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.359909+00:00"
     }
   ],
   "ai-lead-qualification-api": [
@@ -262,7 +378,7 @@
       "promptHash": "4da10d5cb4e04a9a76a5d4a6227fb1611621b6afb231e87e710b3028cc230484",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-lead-qualification-api\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:39:59.750254+00:00"
+      "updatedAt": "2026-04-22T17:37:00.361951+00:00"
     },
     {
       "id": "ai-lead-qualification-api-img-02",
@@ -270,7 +386,7 @@
       "promptHash": "09914cc4ec8b78e1172d1f3afd5ce7ca7930ddb1339c15489d5fca28652dfd57",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-lead-qualification-api\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:00.044398+00:00"
+      "updatedAt": "2026-04-22T17:37:00.362153+00:00"
     },
     {
       "id": "ai-lead-qualification-api-img-03",
@@ -278,7 +394,7 @@
       "promptHash": "e4d022046221bd446ef9f587fff305b0a2ad8b5fdefb88d56ee851d64633c169",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-lead-qualification-api\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:00.349087+00:00"
+      "updatedAt": "2026-04-22T17:37:00.362347+00:00"
     },
     {
       "id": "ai-lead-qualification-api-img-04",
@@ -286,7 +402,25 @@
       "promptHash": "7e0afe9c85c0defdc462de359f96aa15efdac1744e31153926ae56724d89f49e",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\ai-lead-qualification-api\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:00.658296+00:00"
+      "updatedAt": "2026-04-22T17:37:00.362561+00:00"
+    }
+  ],
+  "sales-proposal-generator-api": [
+    {
+      "id": "sales-proposal-generator-api-img-01",
+      "index": 1,
+      "promptHash": "ede2e8c261d129b586ccd3cd3b57476d83c3b9d5a16b9ef595eb9d2e8b833319",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-proposal-generator-api\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.365273+00:00"
+    },
+    {
+      "id": "sales-proposal-generator-api-img-02",
+      "index": 2,
+      "promptHash": "e3564b6c781268c35d1c4a29a82f8a9a735647aa2cb03b788248cd1050845c31",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-proposal-generator-api\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.365963+00:00"
     }
   ],
   "sales-ai-api": [
@@ -296,7 +430,7 @@
       "promptHash": "d7df54a7050c4f1f9e1e3f40337b146f3826326560081de9122ffe55141ad715",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-01.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:00.987606+00:00"
+      "updatedAt": "2026-04-22T17:37:00.368434+00:00"
     },
     {
       "id": "sales-ai-api-img-02",
@@ -304,7 +438,7 @@
       "promptHash": "8bba10b338a4b347285e66c27cfe7efc8ef17b608c7fc994058b4ac5176a3b6b",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-02.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:01.301477+00:00"
+      "updatedAt": "2026-04-22T17:37:00.368641+00:00"
     },
     {
       "id": "sales-ai-api-img-03",
@@ -312,7 +446,7 @@
       "promptHash": "b2a7d2011eae2dbcccb2622ddc7b203e213bbecb8ae34de8bb6897457c2ffe60",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-03.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:01.624316+00:00"
+      "updatedAt": "2026-04-22T17:37:00.368827+00:00"
     },
     {
       "id": "sales-ai-api-img-04",
@@ -320,7 +454,7 @@
       "promptHash": "a115ef31ee338939a61ea49c247e0b808f8f410a1f8ff8f3170560e773201090",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-04.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:01.944965+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369056+00:00"
     },
     {
       "id": "sales-ai-api-img-05",
@@ -328,7 +462,7 @@
       "promptHash": "a993580449ae48bd735558118953e33ddd79c55fd003f54f2005addc5b076255",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-05.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:02.266393+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369239+00:00"
     },
     {
       "id": "sales-ai-api-img-06",
@@ -336,7 +470,7 @@
       "promptHash": "d4879c1a01279e75f0f6a94c21e2a1f5666dfeec65faa688c237851d181b84d7",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-06.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:02.569527+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369427+00:00"
     },
     {
       "id": "sales-ai-api-img-07",
@@ -344,7 +478,7 @@
       "promptHash": "5a63242219ec135dfd0d368f35a0f1af6e698ee086e2fbd90d8eecde2f36add4",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-07.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:02.930716+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369622+00:00"
     },
     {
       "id": "sales-ai-api-img-08",
@@ -352,7 +486,7 @@
       "promptHash": "1e317e7d781443f9e71015727fb829b444488ed9de7f79f71795a9500626a1a5",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-08.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:03.250683+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369803+00:00"
     },
     {
       "id": "sales-ai-api-img-09",
@@ -360,7 +494,7 @@
       "promptHash": "06ac55f6427d950279be86e2a068dd4bfec2920d4489ee89cbec128039b18c09",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-09.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:03.593609+00:00"
+      "updatedAt": "2026-04-22T17:37:00.369999+00:00"
     },
     {
       "id": "sales-ai-api-img-10",
@@ -368,7 +502,59 @@
       "promptHash": "25b7fa8e4c3499bbcc34a79ff11c2610c914b5fd6d6fe5e7239b3325238f7eed",
       "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-ai-api\\img-10.webp",
       "status": "completed",
-      "updatedAt": "2026-04-20T12:40:03.975869+00:00"
+      "updatedAt": "2026-04-22T17:37:00.370186+00:00"
+    }
+  ],
+  "sales-intelligence-api-definition": [
+    {
+      "id": "sales-intelligence-api-definition-img-01",
+      "index": 1,
+      "promptHash": "26c8fe680e53f36b9ebe102b7589202f19678f52b39f78072db6bf6098e8cec9",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-intelligence-api-definition\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.371886+00:00"
+    },
+    {
+      "id": "sales-intelligence-api-definition-img-02",
+      "index": 2,
+      "promptHash": "0a1ef3566a4de50646d928c8b982c1d651747335efd85273eb933a0e49fad76e",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-intelligence-api-definition\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.372387+00:00"
+    },
+    {
+      "id": "sales-intelligence-api-definition-img-03",
+      "index": 3,
+      "promptHash": "08c3edbe7782cada2fe3aba65408c8726c9c8a2d598162e22969fea86f843b99",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\sales-intelligence-api-definition\\img-03.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.372874+00:00"
+    }
+  ],
+  "supabase-rls-multi-tenant-saas": [
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-01",
+      "index": 1,
+      "promptHash": "467a663a3a0ffb9d94b2752a0ecb573d887bb008b978a86c6520da3723075769",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\supabase-rls-multi-tenant-saas\\img-01.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.374693+00:00"
+    },
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-02",
+      "index": 2,
+      "promptHash": "34aa0deffa89fb1199c0c16f620b081fdfe96a272d0063e5d052c3d5fc4ddd74",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\supabase-rls-multi-tenant-saas\\img-02.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.375063+00:00"
+    },
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-03",
+      "index": 3,
+      "promptHash": "ae9070dc15c45f582922720bb799e2d1911ec7fa22727bf799f7379ed43f9302",
+      "path": "C:\\Users\\HP\\Desktop\\vranceflex\\ai-sales-team-claude\\sales-ai\\apps\\web\\public\\blog\\supabase-rls-multi-tenant-saas\\img-03.webp",
+      "status": "completed",
+      "updatedAt": "2026-04-22T17:37:00.375472+00:00"
     }
   ]
 }

@@ -58,9 +58,12 @@ export type LeadV2Item = {
   growth_signal_flag: boolean;
   score: number;
   fit_reason: string;
-  source_provider: "parallel";
+  source_provider: "parallel" | "managed";
   source_run_id: string;
   enrichment_confidence: LeadEnrichmentConfidence;
+  quality_review_confidence: LeadEnrichmentConfidence;
+  icp_match_reasons: string[];
+  rejection_flags: string[];
   evidence: LeadEvidence;
   score_breakdown: LeadScoreBreakdown;
   normalization_version: string;

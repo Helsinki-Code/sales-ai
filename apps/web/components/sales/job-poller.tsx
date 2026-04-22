@@ -139,7 +139,7 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
             {Object.keys(stageMetadata).length > 0 ? (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
                 {Object.entries(stageMetadata)
-                  .slice(0, 4)
+                  .slice(0, 6)
                   .map(([key, value]) => (
                     <span
                       key={key}

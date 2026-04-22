@@ -1,4 +1,27 @@
 {
+  "aes-256-gcm-api-key-storage": [
+    {
+      "id": "aes-256-gcm-api-key-storage-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode developer security illustration. A glowing padlock sits at the centre of a clean circuit-board diagram. On the left flows \"sk-ant-api03-...\" in plain red text. An arrow passes through a golden encryption box labelled \"AES-256-GCM\" with a 12-byte nonce sparkle. On the right the same key becomes a dark grey encrypted hex string with a padlock badge. Below the diagram: a slim timeline bar \u2014 \"plaintext exists: 12ms\" in amber between two grey sections. Background: deep charcoal, subtle hex-grid texture. No people. 4K, 16:9.",
+      "alt": "AES-256-GCM API key storage diagram showing plaintext Anthropic key encrypted with nonce into ciphertext with in-memory-only decryption timeline",
+      "src": "/blog/aes-256-gcm-api-key-storage/img-01.webp"
+    },
+    {
+      "id": "aes-256-gcm-api-key-storage-img-02",
+      "index": 2,
+      "prompt": "Dark-mode comparison table card. Three rows: AES-256-GCM (green check), AES-256-CBC (amber warning), bcrypt (red X). Four columns: \"Reversible\", \"Authenticated\", \"Server Performance\", \"NIST Standard\". Clean tick/cross icons. Subtitle: \"For BYOK API key storage, AES-256-GCM is the only correct answer.\" Charcoal background, minimal flat design. No people. 16:9.",
+      "alt": "AES-256-GCM API key storage comparison table showing advantages over AES-256-CBC and bcrypt for reversible authenticated encryption with NIST standard approval",
+      "src": "/blog/aes-256-gcm-api-key-storage/img-02.webp"
+    },
+    {
+      "id": "aes-256-gcm-api-key-storage-img-03",
+      "index": 3,
+      "prompt": "Dark-mode vertical flow diagram. Two parallel tracks. LEFT \"At Key Submission\": blue track. Step 1: \"User submits sk-ant-...\" Step 2: \"randomBytes(12) \u2192 nonce\" Step 3: \"AESGCM.encrypt(nonce, key)\" Step 4: \"store hex(nonce+ciphertext) in DB\". RIGHT \"At API Call Time\": green track. Step 1: \"Fetch encrypted hex from DB\". Step 2: \"Extract nonce (first 12 bytes)\". Step 3: \"AESGCM.decrypt \u2192 plaintext\". Step 4: \"Use in Authorization header\". Step 5: \"Function returns \u2192 plaintext leaves scope\". Connecting horizontal bar at the DB step. Clean dark background, blue and green accents. No people. 16:9.",
+      "alt": "AES-256-GCM API key storage lifecycle showing encryption at submission with nonce and master key storing ciphertext in database then decryption in memory at API call time",
+      "src": "/blog/aes-256-gcm-api-key-storage/img-03.webp"
+    }
+  ],
   "ai-outreach-email-api": [
     {
       "id": "ai-outreach-email-api-img-01",
@@ -20,6 +43,22 @@
       "prompt": "Dark-mode three-card layout side by side. Each card is a communication channel mockup. LEFT card (email icon, blue): shows an email with \"Subject:\" line and 4 lines of body text. MIDDLE card (LinkedIn icon, navy blue): shows a shorter LinkedIn DM format without subject, conversational tone, 3 lines visible. RIGHT card (SMS icon, green): shows a mobile SMS bubble with very short single-line message. All three generated from the same prospect description shown as small text at the top. Clean flat design, dark background. No people. 16:9.",
       "alt": "AI outreach email API three channel variants showing email with subject line, LinkedIn DM format, and SMS format generated from same prospect description with different lengths",
       "src": "/blog/ai-outreach-email-api/img-03.webp"
+    }
+  ],
+  "ai-sales-tool-real-cost-llm-markup": [
+    {
+      "id": "ai-sales-tool-real-cost-llm-markup-img-01",
+      "index": 1,
+      "prompt": "Dark editorial illustration. An iceberg on dark ocean. ABOVE WATERLINE (small, visible): \"Your subscription fee: $299/month\" in white text with a clean price tag icon. BELOW WATERLINE (large, hidden): three stacked cost layers in deep red/amber. Layer 1: \"Vendor LLM markup: 7-20x\". Layer 2: \"Token costs passed to users as 'AI credits'\". Layer 3: \"Platform lock-in premium\". At the bottom of the iceberg, a small BYOK beacon glows green with text \"BYOK: pay Anthropic directly\". Background: very dark navy-charcoal. Editorial style. No people. 4K, 16:9.",
+      "alt": "AI sales tool hidden LLM markup iceberg showing visible subscription fee above water and hidden vendor markup AI credits and lock-in premium below waterline with BYOK alternative",
+      "src": "/blog/ai-sales-tool-real-cost-llm-markup/img-01.webp"
+    },
+    {
+      "id": "ai-sales-tool-real-cost-llm-markup-img-02",
+      "index": 2,
+      "prompt": "Dark-mode horizontal bar chart. Y-axis: five cost models. X-axis: \"Cost per lead ($) \u2014 AI component only\". Bars left to right: \"BYOK Direct (Anthropic Sonnet)\" green bar very short at $0.018. \"Vendor bundled subscription\" amber bar at $0.08. \"Credit-based tool (Clay equivalent)\" orange bar at $0.15. \"Explicit per-call ($0.10/lead)\" red bar at $0.10. Each bar has a \"Markup\" badge: 1\u00d7, 4.4\u00d7, 8.3\u00d7, 5.5\u00d7. Title: \"AI cost per lead \u2014 direct rates vs vendor billing\". Dark background, clean minimal design. No people. 16:9.",
+      "alt": "AI sales tool LLM markup comparison chart showing BYOK direct Anthropic cost at $0.018 versus vendor bundled subscription credit-based and per-call pricing with 4-8x markup",
+      "src": "/blog/ai-sales-tool-real-cost-llm-markup/img-02.webp"
     }
   ],
   "add-ai-to-sales-workflow": [
@@ -96,6 +135,38 @@
       "prompt": "Dark-mode timeline chart. X-axis: time in seconds (0 to 90s). Y-axis: \"Poll interval\". Shows a bar chart with polling attempts at: 5s, 7.5s, 11s, 16s, 24s, 30s, 30s (capped). Each bar is labelled with \"Poll 1: queued\", \"Poll 2: running\", etc. At 75s mark, the bar turns green and shows \"Poll 7: COMPLETED\". Below the timeline, a label \"Total: 7 polls vs 90 polls at 1s fixed interval\". Clean dark background, cyan bars, green completion marker. No people. 16:9.",
       "alt": "Exponential backoff polling timeline for async sales prospecting API showing 7 polls over 75 seconds versus 90 polls at fixed 1-second intervals with completion marker",
       "src": "/blog/sales-prospecting-api-async/img-03.webp"
+    }
+  ],
+  "async-webhook-delivery-api": [
+    {
+      "id": "async-webhook-delivery-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode polling vs webhook comparison timeline illustration. LEFT \"Polling (what you're doing now)\": a vertical timeline showing a server making GET requests every 3 seconds \u2014 18 small request arrows pointing up to a job queue, each labelled \"still running...\". Red annotation: \"90 wasted calls, extra load, extra cost\". RIGHT \"Webhook (what you should do)\": same timeline, just ONE moment at the bottom where the server does a POST to YOUR endpoint. Green annotation: \"Zero wasted calls. Notified the moment it's done.\" Both timelines show the same 90-second job duration. Charcoal background. No people. 4K, 16:9.",
+      "alt": "Async webhook delivery API comparison showing polling making 90 requests every 3 seconds versus webhook delivering one notification at job completion",
+      "src": "/blog/async-webhook-delivery-api/img-01.webp"
+    },
+    {
+      "id": "async-webhook-delivery-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode bar chart comparison. X-axis: \"Monthly async jobs\" \u2014 100, 500, 1000, 5000. Y-axis: \"HTTP requests\". Two bar groups. \"Polling (5s interval, 75s avg job)\" bars grow steeply: 1,500 / 7,500 / 15,000 / 75,000. \"Webhooks\" bars stay flat: 100 / 500 / 1,000 / 5,000 \u2014 one request per completion. Gap annotation shows \"93% fewer requests\" at 5000 jobs. Dark background, red bars for polling, green bars for webhooks. No people. 16:9.",
+      "alt": "Async webhook delivery API HTTP request comparison showing polling generating 75000 requests versus webhooks generating 5000 requests at 5000 monthly jobs 93% reduction",
+      "src": "/blog/async-webhook-delivery-api/img-02.webp"
+    }
+  ],
+  "sales-competitor-battle-card-api": [
+    {
+      "id": "sales-competitor-battle-card-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode split-panel battle card illustration. LEFT PANEL (40%): a compact POST request terminal showing /sales/competitors endpoint with \"competitor\" and \"deal_context\" fields in green JSON. RIGHT PANEL (60%): a glowing battle card document floating on dark background. The card has four clearly labelled sections: \"Their Strengths\" (amber icons), \"Their Weaknesses\" (red icons), \"Our Differentiators\" (green checkmarks), \"Talk Track\" (blue speech bubble). Small timer badge: \"2.4s\". Background: deep charcoal. No people. 4K, 16:9.",
+      "alt": "Sales competitor battle card API showing POST request returning four-section battle card with strengths weaknesses differentiators and talk track in 2.4 seconds",
+      "src": "/blog/sales-competitor-battle-card-api/img-01.webp"
+    },
+    {
+      "id": "sales-competitor-battle-card-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode four-quadrant battle card card. Each quadrant has a coloured header bar. TOP-LEFT \"Their Strengths\" (amber): 4 bullet points with magnifier icons. TOP-RIGHT \"Their Weaknesses\" (red): 4 bullet points with X icons. BOTTOM-LEFT \"Our Differentiators\" (green): 4 bullet points with checkmark icons. BOTTOM-RIGHT \"Talk Track\" (electric blue): 3-sentence paragraph with speech bubble icon. A small badge: \"Generated by /sales/competitors \u2014 2.4s\". Clean dark card on charcoal background. No people. 16:9.",
+      "alt": "Sales competitor battle card API output showing four sections strengths weaknesses differentiators talk track and objection handlers generated from one POST request",
+      "src": "/blog/sales-competitor-battle-card-api/img-02.webp"
     }
   ],
   "byok-ai-tool": [
@@ -225,6 +296,38 @@
       "src": "/blog/clay-apollo-alternative-developers/img-04.webp"
     }
   ],
+  "add-ai-to-hubspot-api": [
+    {
+      "id": "add-ai-to-hubspot-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode integration architecture diagram. Three nodes connected by glowing arrows forming a triangle. LEFT node: orange HubSpot logo circle labelled \"HubSpot CRM\". CENTRE-RIGHT node: electric blue shield circle labelled \"Sales AI API\". BOTTOM node: green database circle labelled \"HubSpot CRM (results written back)\". Arrow from HubSpot \u2192 Sales AI labelled \"webhook: deal stage changed\". Arrow from Sales AI \u2192 Your Server labelled \"POST request \u2192 qualify lead\". Arrow from Your Server \u2192 HubSpot labelled \"write score + tier + outreach to contact\". Above the triangle: a small red \"No Zapier\" badge with strikethrough. Background: deep charcoal. No people. 4K, 16:9.",
+      "alt": "HubSpot AI API direct integration diagram showing HubSpot webhook triggering Sales AI qualification API then writing results back to CRM without Zapier middleware",
+      "src": "/blog/add-ai-to-hubspot-api/img-01.webp"
+    },
+    {
+      "id": "add-ai-to-hubspot-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode two-path diagram. LEFT path \"Option A: Workflow Action\" (amber): HubSpot workflow builder icon \u2192 \"Send a webhook\" node \u2192 label \"Requires Ops Hub Pro ($800+/mo)\". RIGHT path \"Option B: Webhooks API\" (green): code bracket icon \u2192 Private App \u2192 webhook subscription \u2192 label \"Works on free tier. No Ops Hub needed.\" Green checkmark on right path. Charcoal background. No people. 16:9.",
+      "alt": "HubSpot AI API integration paths showing workflow webhook requiring Operations Hub Pro versus Webhooks API private app working on free tier",
+      "src": "/blog/add-ai-to-hubspot-api/img-02.webp"
+    }
+  ],
+  "icp-scoring-api-automation": [
+    {
+      "id": "icp-scoring-api-automation-img-01",
+      "index": 1,
+      "prompt": "Dark-mode developer dashboard illustration. Centre: a large gauge dial showing \"ICP Fit Score: 91\" in bright green, with a needle pointing to the right quarter. Below the gauge: three coloured badge pills \u2014 \"Series B \u2713\" (green), \"RevOps Function \u2713\" (green), \"50-500 employees \u2713\" (green). Small amber badge: \"No HubSpot \u2717 (optional)\". Below badges: a small text card showing \"Recommendation: Priority outreach \u2014 strong ICP match\". In the top left: a compact code snippet showing the POST request body with a lead description and ICP definition fields. Background: deep charcoal. No people. 4K, 16:9.",
+      "alt": "ICP scoring API dashboard showing lead fit score 91 with matching criteria Series B RevOps function employee count and recommendation for priority outreach",
+      "src": "/blog/icp-scoring-api-automation/img-01.webp"
+    },
+    {
+      "id": "icp-scoring-api-automation-img-02",
+      "index": 2,
+      "prompt": "Dark-mode annotated JSON response card. Four coloured annotation arrows pointing to specific fields. \"fit_score: 91\" (green arrow): \"0-100 int \u2014 route above 80 immediately\". \"matching_criteria: [...]\" (blue arrow): \"Array of matched signals \u2014 show to rep as context\". \"gaps: [...]\" (amber arrow): \"Specific unmet criteria \u2014 useful for qualification call prep\". \"recommendation:\" (orange arrow): \"Verbatim guidance for the rep or automation logic\". Monospace code font, charcoal background. No people. 16:9.",
+      "alt": "ICP scoring API response annotated showing fit score 91 matching criteria array gaps array and recommendation field with routing and action guidance",
+      "src": "/blog/icp-scoring-api-automation/img-02.webp"
+    }
+  ],
   "ai-lead-qualification-api": [
     {
       "id": "ai-lead-qualification-api-img-01",
@@ -253,6 +356,22 @@
       "prompt": "Dark-mode horizontal pipeline diagram. 5 nodes connected left to right by arrows with labels above. Node 1 (HubSpot icon box): \"New Contact Created\". Arrow labelled \"webhook\". Node 2 (code bracket icon): \"Build lead description string\". Arrow labelled \"API call\". Node 3 (shield/AI icon): \"/sales/qualify \u2014 AI scores lead\". Arrow labelled \"structured JSON\". Node 4 (database icon): \"Write score + tier + reasoning to CRM fields\". Arrow labelled \"conditional routing\". Node 5 (fork icon splitting into 3): \"A: Assign to top rep + Slack\" / \"B: Add to sequence\" / \"C/D: Nurture\". Clean dark background, electric blue accent. No people. 16:9.",
       "alt": "AI lead qualification API CRM integration flow showing HubSpot webhook to POST /sales/qualify to score tier reasoning written back to CRM with routing logic",
       "src": "/blog/ai-lead-qualification-api/img-04.webp"
+    }
+  ],
+  "sales-proposal-generator-api": [
+    {
+      "id": "sales-proposal-generator-api-img-01",
+      "index": 1,
+      "prompt": "Dark-mode split-screen illustration. LEFT PANEL (35%): a minimal POST request terminal. Headers show Authorization Bearer. JSON body shows four compact fields: \"company\", \"problem\", \"solution\", \"pricing\" with green values. BOTTOM LEFT: small badge \"3.1s\". RIGHT PANEL (65%): a glowing multi-section proposal document card floating on dark background. Five coloured section tabs visible: \"Executive Summary\" (purple), \"Problem Statement\" (red), \"Proposed Solution\" (blue), \"Investment\" (green), \"Next Steps\" (orange). Each section shows 2 lines of white text fading to grey. Background: deep charcoal. Electric blue connection arrow between panels. No people. 4K, 16:9.",
+      "alt": "Sales proposal generator API showing POST request with company problem solution pricing fields returning five-section proposal document in 3 seconds",
+      "src": "/blog/sales-proposal-generator-api/img-01.webp"
+    },
+    {
+      "id": "sales-proposal-generator-api-img-02",
+      "index": 2,
+      "prompt": "Dark-mode five-card vertical stack. Each card represents one proposal section with a coloured left border. Card 1 (purple, \"executive_summary\"): 2-line preview, annotation arrow \"Opens with the business impact, not the product\". Card 2 (red, \"problem_statement\"): annotation \"Uses prospect's own numbers \u2014 60%, 4hrs, 200 leads\". Card 3 (blue, \"proposed_solution\"): annotation \"Three-numbered steps \u2014 decision-maker readable\". Card 4 (green, \"investment\"): annotation \"ROI framing \u2014 compares to existing cost\". Card 5 (orange, \"next_steps\"): annotation \"Four numbered steps, no vague 'we'll be in touch'\". Charcoal background. No people. 16:9.",
+      "alt": "Sales proposal generator API five-section output showing executive summary problem statement proposed solution investment and next steps with quality annotations",
+      "src": "/blog/sales-proposal-generator-api/img-02.webp"
     }
   ],
   "sales-ai-api": [
@@ -325,6 +444,52 @@
       "prompt": "Dark security-themed infographic with 4 vertical pillars side by side. Pillar 1 (shield icon, label \"AES-256-GCM Encryption\"): text \"Keys encrypted before database write. Plaintext exists in memory only during API call.\" Pillar 2 (database icon with lock, label \"RLS Isolation\"): \"Every tenant table protected by Supabase row-level security policies.\" Pillar 3 (key icon with scope, label \"Scoped API Keys\"): \"Mint keys limited to specific endpoints. Rotate without touching other integrations.\" Pillar 4 (scroll icon, label \"Audit Logs\"): \"Key creation, rotation, and workspace changes logged with actor, timestamp, IP.\" Background: very dark navy with subtle circuit-board texture. Icon colour: electric blue. No people. 16:9.",
       "alt": "Sales AI API security architecture showing four pillars: AES-256-GCM key encryption, Supabase row-level security isolation, scoped API keys per endpoint, and full audit logging",
       "src": "/blog/sales-ai-api/img-10.webp"
+    }
+  ],
+  "sales-intelligence-api-definition": [
+    {
+      "id": "sales-intelligence-api-definition-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode two-category diagram. A central dividing line splits the canvas. LEFT SIDE (labelled \"Data APIs\" in amber): large database cylinder icons for Apollo, ZoomInfo, Clearbit. Below: \"Returns: contact records, firmographics, emails, phone numbers\". RIGHT SIDE (labelled \"Skill APIs\" in electric blue): REST endpoint cards showing /sales/qualify, /sales/research, /sales/outreach. Below: \"Returns: scores, reasoning, copy, insights \u2014 structured JSON\". Centre label: \"Sales Intelligence APIs\". The two sides are visually complementary, not adversarial \u2014 connected by a dotted bridge arrow labelled \"Most teams need both\". Background: deep charcoal #0D0D0D. No people. 4K, 16:9.",
+      "alt": "Sales intelligence API definition showing two categories: data APIs returning contact records from Apollo ZoomInfo versus skill APIs returning structured AI reasoning scores and copy",
+      "src": "/blog/sales-intelligence-api-definition/img-01.webp"
+    },
+    {
+      "id": "sales-intelligence-api-definition-img-02",
+      "index": 2,
+      "prompt": "Dark-mode two code-block comparison. LEFT \"Data API response (Apollo/Clearbit)\": JSON showing person fields \u2014 email, title, company_name, employee_count, industry, linkedin_url, phone. Label: \"Returns: facts about the person\". RIGHT \"Skill API response (Sales AI)\": JSON showing score: 87, tier: \"A\", reasoning: \"Series B SaaS, RevOps function...\", recommended_next_action: \"Priority outreach, reference their hiring signals\". Label: \"Returns: a decision + rationale\". Arrow between them: \"You need both\". Dark background, amber accent left, electric blue right. No people. 16:9.",
+      "alt": "Sales intelligence API data API versus skill API comparison showing Apollo contact record JSON versus Sales AI qualification score tier reasoning and next action JSON",
+      "src": "/blog/sales-intelligence-api-definition/img-02.webp"
+    },
+    {
+      "id": "sales-intelligence-api-definition-img-03",
+      "index": 3,
+      "prompt": "Dark-mode decision table. Two-column layout. Column header \"Data API\" (amber) and \"Skill API\" (blue). Eight rows with question marks on the left: \"Who should I target?\" \u2192 Data API. \"Is this lead a fit?\" \u2192 Skill API. \"What's their email address?\" \u2192 Data API. \"What's the best outreach angle?\" \u2192 Skill API. \"How big is this company?\" \u2192 Data API. \"How should I respond to this objection?\" \u2192 Skill API. \"Who just raised a Series B?\" \u2192 Data API. \"Generate a proposal from my deal notes\" \u2192 Skill API. Clean dark table design. No people. 16:9.",
+      "alt": "Sales intelligence API decision table showing when to use data APIs for contact facts versus skill APIs for AI reasoning scoring outreach and proposal generation",
+      "src": "/blog/sales-intelligence-api-definition/img-03.webp"
+    }
+  ],
+  "supabase-rls-multi-tenant-saas": [
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-01",
+      "index": 1,
+      "prompt": "Cinematic dark-mode multi-tenant isolation diagram. Three tall vertical \"silos\" float on a dark charcoal canvas. Each silo is labelled \"Org A\", \"Org B\", \"Org C\" with a different accent colour (blue, purple, green). Inside each silo: small data row cards visible only within their column. A dotted red arrow tries to cross from \"Org A\" silo to \"Org B\" silo but is blocked by a glowing white RLS shield labelled \"Row Level Security\" with a PostgreSQL elephant icon. Below the shield: \"0 rows returned\" in green instead of \"breach\". Background: very dark charcoal. No people. 4K, 16:9.",
+      "alt": "Supabase RLS multi-tenant SaaS data isolation diagram showing three organisation silos with row level security shield blocking cross-tenant data access returning zero rows",
+      "src": "/blog/supabase-rls-multi-tenant-saas/img-01.webp"
+    },
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-02",
+      "index": 2,
+      "prompt": "Dark-mode query transformation diagram. Two code blocks side by side connected by a right arrow. LEFT \"Query as written by app code\": SELECT * FROM api_keys \u2014 clean, simple, 1 line in white. Arrow labelled \"PostgreSQL adds RLS policy\". RIGHT \"Query as actually executed\": SELECT * FROM api_keys WHERE org_id IN (SELECT org_id FROM org_members WHERE user_id = auth.uid()) \u2014 highlighted in electric blue. Below right: \"Tenant B's rows: 0 returned\". Clean dark background with subtle grid. No people. 16:9.",
+      "alt": "Supabase RLS multi-tenant query transformation showing simple SELECT becoming org-scoped query with automatic WHERE clause added by PostgreSQL row level security policy",
+      "src": "/blog/supabase-rls-multi-tenant-saas/img-02.webp"
+    },
+    {
+      "id": "supabase-rls-multi-tenant-saas-img-03",
+      "index": 3,
+      "prompt": "Dark-mode performance comparison. LEFT \"Naive subquery policy\": SQL shows org_id IN (SELECT org_id FROM org_members WHERE user_id = auth.uid()). An execution timeline bar shows \"subquery runs per row\" \u2014 500 ticks for a 500-row table. Time label: \"~2,400ms\". RIGHT \"STABLE function policy\": SQL shows org_id IN (SELECT get_user_org_ids()). Timeline shows one function call, cached, then 500 row comparisons. Time label: \"~8ms\". Green arrow showing \"300x faster\". Dark background. No people. 16:9.",
+      "alt": "Supabase RLS multi-tenant performance comparison showing naive subquery policy running per-row versus STABLE security definer function with query plan caching 300x faster",
+      "src": "/blog/supabase-rls-multi-tenant-saas/img-03.webp"
     }
   ]
 }

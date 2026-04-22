@@ -100,7 +100,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
 
   await updateRunningState("starting", 5, "Worker picked up job.");
 
-  let model = "parallel-leads-v1";
+  let model = "managed-leads-v1";
   let resultData: unknown;
   let durationMs = 0;
   let tokens = {
@@ -128,7 +128,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
 
     resultData = leadsResult.leads;
     durationMs = Date.now() - startedAt;
-    model = `parallel:${leadsResult.stats.generatorUsed}`;
+    model = `managed:${leadsResult.stats.generatorUsed}`;
     parallelUsage = {
       apiCalls: leadsResult.stats.parallelApiCalls,
       enrichmentRuns: leadsResult.stats.taskRunIds.length,
