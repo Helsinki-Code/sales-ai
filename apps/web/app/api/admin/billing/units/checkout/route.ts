@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
               quantity: 1,
             },
           ],
-      payment_method_collection: "always",
       success_url: `${baseUrl}/billing?topup=success`,
       cancel_url: `${baseUrl}/billing?topup=cancelled`,
       metadata: {
