@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { encryptText } from "@/lib/server-crypto";
 
+const SUPPORTED_PROVIDERS = ["anthropic", "openai", "gemini"] as const;
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -17,16 +19,17 @@ export async function POST(request: NextRequest) {
 
     const { workspaceId, orgId } = await getWorkspaceContext(user.id);
     const body = await request.json();
-    const provider = typeof body?.provider === "string" ? body.provider : "";
+    const providerRaw = typeof body?.provider === "string" ? body.provider.trim() : "";
+    const provider = (SUPPORTED_PROVIDERS as readonly string[]).includes(providerRaw) ? providerRaw : "";
     const apiKey = typeof body?.apiKey === "string" ? body.apiKey.trim() : "";
 
-    if (provider !== "anthropic") {
+    if (!provider) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: "INVALID_REQUEST",
-            message: "provider must be \"anthropic\""
+            message: "provider must be one of anthropic | openai | gemini"
           }
         },
         { status: 400 }
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
         {
           workspace_id: workspaceId,
           org_id: orgId,
-          provider: "anthropic",
+          provider,
           api_key_encrypted: encrypted,
           status: "active",
           updated_by: user.id
@@ -93,7 +96,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         workspaceId,
-        provider: "anthropic",
+        provider,
         status: "active"
       }
     });

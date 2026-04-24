@@ -2,7 +2,35 @@
 
 import { useState } from "react";
 
+type Provider = "anthropic" | "openai" | "gemini";
+
+const providerMetadata: Record<
+  Provider,
+  {
+    label: string;
+    placeholder: string;
+    docsUrl: string;
+  }
+> = {
+  anthropic: {
+    label: "Anthropic",
+    placeholder: "sk-ant-...",
+    docsUrl: "https://console.anthropic.com/keys"
+  },
+  openai: {
+    label: "OpenAI",
+    placeholder: "sk-proj-...",
+    docsUrl: "https://platform.openai.com/api-keys"
+  },
+  gemini: {
+    label: "Gemini",
+    placeholder: "AIza...",
+    docsUrl: "https://aistudio.google.com/app/apikey"
+  }
+};
+
 export function ProviderCredentialsSection() {
+  const [provider, setProvider] = useState<Provider>("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -16,16 +44,15 @@ export function ProviderCredentialsSection() {
       const res = await fetch("/api/admin/provider-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "anthropic", apiKey })
+        body: JSON.stringify({ provider, apiKey })
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data.error?.message || "Failed to save credentials");
       }
 
-      setMessage({ type: "success", text: "Anthropic API key saved successfully!" });
+      setMessage({ type: "success", text: `${providerMetadata[provider].label} API key saved successfully.` });
       setApiKey("");
     } catch (error) {
       setMessage({
@@ -38,22 +65,47 @@ export function ProviderCredentialsSection() {
   };
 
   return (
-    <div className="card" style={{ maxWidth: "500px" }}>
-      <h3>Bring Your Own Anthropic Key</h3>
+    <div className="card" style={{ maxWidth: "560px" }}>
+      <h3>Bring Your Own Model Keys</h3>
       <p style={{ color: "var(--slate)", marginBottom: "1.5rem" }}>
-        Enter your Anthropic API key. It's encrypted and used only for your workspace.
+        Save workspace keys for Anthropic, OpenAI, or Gemini. Keys are encrypted at rest and used only for your
+        workspace.
       </p>
 
       <form onSubmit={handleSubmit}>
+        <label htmlFor="provider-select" style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
+          Provider
+        </label>
+        <select
+          id="provider-select"
+          value={provider}
+          onChange={(event) => setProvider(event.target.value as Provider)}
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "0.75rem",
+            marginBottom: "1rem",
+            border: "1px solid var(--border)",
+            borderRadius: "4px",
+            fontSize: "0.95rem"
+          }}
+        >
+          {(Object.keys(providerMetadata) as Provider[]).map((providerOption) => (
+            <option key={providerOption} value={providerOption}>
+              {providerMetadata[providerOption].label}
+            </option>
+          ))}
+        </select>
+
         <label htmlFor="api-key" style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
           API Key
         </label>
         <input
           id="api-key"
           type="password"
-          placeholder="sk-ant-..."
+          placeholder={providerMetadata[provider].placeholder}
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={(event) => setApiKey(event.target.value)}
           required
           minLength={16}
           style={{
@@ -78,7 +130,7 @@ export function ProviderCredentialsSection() {
             cursor: isLoading || !apiKey ? "not-allowed" : "pointer"
           }}
         >
-          {isLoading ? "Saving..." : "Save Key"}
+          {isLoading ? "Saving..." : `Save ${providerMetadata[provider].label} Key`}
         </button>
       </form>
 
@@ -99,7 +151,7 @@ export function ProviderCredentialsSection() {
 
       <div
         style={{
-          marginTop: "2rem",
+          marginTop: "1.5rem",
           padding: "1rem",
           backgroundColor: "var(--panel)",
           borderRadius: "4px",
@@ -107,12 +159,17 @@ export function ProviderCredentialsSection() {
           color: "var(--slate)"
         }}
       >
-        <p style={{ margin: "0 0 0.5rem 0", fontWeight: "500" }}>How to get your API key:</p>
-        <ol style={{ margin: "0.5rem 0", paddingLeft: "1.5rem" }}>
-          <li>Go to <a href="https://console.anthropic.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>console.anthropic.com/keys</a></li>
-          <li>Create or copy an existing API key</li>
-          <li>Paste it above and save</li>
-        </ol>
+        <p style={{ margin: "0 0 0.5rem 0", fontWeight: "500" }}>Get your API keys:</p>
+        <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+          {(Object.keys(providerMetadata) as Provider[]).map((providerOption) => (
+            <li key={providerOption} style={{ marginBottom: "0.3rem" }}>
+              {providerMetadata[providerOption].label}:{" "}
+              <a href={providerMetadata[providerOption].docsUrl} target="_blank" rel="noopener noreferrer">
+                {providerMetadata[providerOption].docsUrl}
+              </a>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

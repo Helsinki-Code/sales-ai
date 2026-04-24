@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { llmProviders } from "@sales-ai/shared";
 
 export const createApiKeySchema = z.object({
   name: z.string().min(2).max(80),
@@ -7,13 +8,15 @@ export const createApiKeySchema = z.object({
 });
 
 export const upsertProviderCredentialSchema = z.object({
-  provider: z.literal("anthropic"),
+  provider: z.enum(llmProviders),
   apiKey: z.string().min(16)
 });
 
 export const modelPolicyItemSchema = z.object({
   endpoint: z.string().min(2),
+  defaultProvider: z.enum(llmProviders).default("anthropic"),
   defaultModel: z.string().min(2),
+  allowedProviders: z.array(z.enum(llmProviders)).min(1).default(["anthropic"]),
   allowedModels: z.array(z.string().min(2)).min(1)
 });
 

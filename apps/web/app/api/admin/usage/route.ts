@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("usage_daily_rollups")
-      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,standard_units_consumed,lead_units_consumed")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,managed_crawler_runs,managed_pages_crawled,managed_verification_runs,managed_cycle_count,standard_units_consumed,lead_units_consumed")
       .eq("workspace_id", workspaceId)
       .order("usage_date", { ascending: false })
       .limit(180);
@@ -49,7 +49,16 @@ export async function GET(request: NextRequest) {
 
     const sanitized = (data ?? []).map((row: Record<string, unknown>) => {
       const model = typeof row.model === "string" ? row.model.replace(/parallel/gi, "managed") : row.model;
-      return { ...row, model };
+      return {
+        ...row,
+        model,
+        managed_crawler_runs:
+          typeof row.managed_crawler_runs === "number" ? row.managed_crawler_runs : row.parallel_api_calls ?? 0,
+        managed_verification_runs:
+          typeof row.managed_verification_runs === "number"
+            ? row.managed_verification_runs
+            : row.parallel_enrichment_runs ?? 0
+      };
     });
 
     const { data: unitWallet, error: unitWalletError } = await supabase

@@ -4,7 +4,7 @@ import { validateBody } from "../middleware/validate.middleware.js";
 import { createApiKeySchema, upsertModelPoliciesSchema, upsertProviderCredentialSchema } from "../schemas/admin.schemas.js";
 import { assertWorkspaceAccess } from "../services/workspace-access.service.js";
 import { createApiKey, revokeApiKey, rotateApiKey } from "../services/api-keys.service.js";
-import { upsertAnthropicApiKey } from "../services/provider-credentials.service.js";
+import { upsertProviderApiKey } from "../services/provider-credentials.service.js";
 import { upsertModelPolicies } from "../services/model-policy.service.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 
@@ -28,8 +28,14 @@ adminRouter.post("/workspaces/:workspaceId/provider-credentials", validateBody(u
     const { data: workspace } = await supabaseAdmin.from("workspaces").select("org_id").eq("id", workspaceId).single();
     if (!workspace) throw new Error("Workspace not found.");
 
-    await upsertAnthropicApiKey(workspaceId, workspace.org_id, req.userAuth.userId, req.body.apiKey);
-    return res.json({ success: true, data: { workspaceId, provider: "anthropic", status: "active" } });
+    await upsertProviderApiKey(
+      workspaceId,
+      workspace.org_id,
+      req.userAuth.userId,
+      req.body.provider,
+      req.body.apiKey
+    );
+    return res.json({ success: true, data: { workspaceId, provider: req.body.provider, status: "active" } });
   } catch (error) {
     return next(error);
   }
@@ -91,7 +97,7 @@ adminRouter.get("/workspaces/:workspaceId/usage", async (req, res, next) => {
 
     let query = supabaseAdmin
       .from("usage_daily_rollups")
-      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,standard_units_consumed,lead_units_consumed")
+      .select("usage_date,endpoint,model,request_count,success_count,failure_count,input_tokens,output_tokens,cost_usd,token_cost_usd,managed_estimated_cost_usd,total_cost_usd,parallel_api_calls,parallel_enrichment_runs,managed_crawler_runs,managed_pages_crawled,managed_verification_runs,managed_cycle_count,standard_units_consumed,lead_units_consumed")
       .eq("workspace_id", workspaceId)
       .order("usage_date", { ascending: false })
       .limit(180);

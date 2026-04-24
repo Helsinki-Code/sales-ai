@@ -26,6 +26,7 @@ export type SalesJobPayload = {
   apiKeyId?: string;
   endpoint: string;
   input: Record<string, unknown>;
+  requestedProvider?: "anthropic" | "openai" | "gemini";
   requestedModel?: string;
   requestId: string;
 };

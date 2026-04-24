@@ -14,8 +14,10 @@ export async function recordUsageEvent(input: {
   tokenCostUsd?: number;
   managedEstimatedCostUsd?: number;
   totalCostUsd?: number;
-  parallelApiCalls?: number;
-  parallelEnrichmentRuns?: number;
+  managedCrawlerRuns?: number;
+  managedPagesCrawled?: number;
+  managedVerificationRuns?: number;
+  managedCycleCount?: number;
   standardUnitsConsumed?: number;
   leadUnitsConsumed?: number;
 }): Promise<void> {
@@ -36,8 +38,12 @@ export async function recordUsageEvent(input: {
     token_cost_usd: input.tokenCostUsd ?? null,
     managed_estimated_cost_usd: input.managedEstimatedCostUsd ?? null,
     total_cost_usd: input.totalCostUsd ?? null,
-    parallel_api_calls: input.parallelApiCalls ?? 0,
-    parallel_enrichment_runs: input.parallelEnrichmentRuns ?? 0,
+    parallel_api_calls: input.managedCrawlerRuns ?? 0,
+    parallel_enrichment_runs: input.managedVerificationRuns ?? 0,
+    managed_crawler_runs: input.managedCrawlerRuns ?? 0,
+    managed_pages_crawled: input.managedPagesCrawled ?? 0,
+    managed_verification_runs: input.managedVerificationRuns ?? 0,
+    managed_cycle_count: input.managedCycleCount ?? 0,
     standard_units_consumed: input.standardUnitsConsumed ?? 0,
     lead_units_consumed: input.leadUnitsConsumed ?? 0
   });

@@ -1,7 +1,7 @@
 import type { Redis } from "ioredis";
 import { loadSkillPrompt } from "../prompts/loader.js";
 import { runAgent } from "./base-agent.js";
-import type { SalesEndpoint, RunAgentResult } from "../types.js";
+import type { SalesEndpoint, RunAgentResult, LlmProvider } from "../types.js";
 import { runPythonJsonCommand } from "../python/bridge.js";
 
 const defaultModelMap: Record<string, string> = {
@@ -14,6 +14,7 @@ export type ExecuteSkillInput = {
   endpoint: SalesEndpoint;
   userInput: unknown;
   apiKey: string;
+  provider?: LlmProvider;
   model?: string;
   redis: Redis | null;
   onProgress?: (update: { stage: string; progress: number; message: string }) => Promise<void> | void;
@@ -26,6 +27,7 @@ export async function executeSkill<T = unknown>(input: ExecuteSkillInput): Promi
   const model = input.model ?? defaultModelMap[input.endpoint] ?? "claude-sonnet-4-5";
   return runAgent<T>({
     apiKey: input.apiKey,
+    provider: input.provider,
     model,
     systemPrompt,
     userPrompt,

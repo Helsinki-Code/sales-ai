@@ -19,6 +19,8 @@ export const salesEndpoints = [
 ] as const;
 
 export type SalesEndpoint = (typeof salesEndpoints)[number];
+export const llmProviders = ["anthropic", "openai", "gemini"] as const;
+export type LlmProvider = (typeof llmProviders)[number];
 
 export const asyncSalesEndpoints: SalesEndpoint[] = ["prospect", "leads", "report", "report-pdf"];
 export const syncSalesEndpoints: SalesEndpoint[] = salesEndpoints.filter(
@@ -46,6 +48,7 @@ export type RunAgentResult<T = unknown> = {
   data: T;
   rawText: string;
   model: string;
+  provider?: LlmProvider;
   tokens: TokenUsage;
   durationMs: number;
   toolCalls: number;

@@ -1,56 +1,97 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceId } from "@/lib/workspace";
+type LlmProvider = "anthropic" | "openai" | "gemini";
+
+const SUPPORTED_PROVIDERS = ["anthropic", "openai", "gemini"] as const;
 
 interface ModelPolicyInput {
   endpoint: string;
+  defaultProvider: LlmProvider;
   defaultModel: string;
+  allowedProviders: LlmProvider[];
   allowedModels: string[];
+}
+
+function normalizeProvider(value: unknown): LlmProvider | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if ((SUPPORTED_PROVIDERS as readonly string[]).includes(trimmed)) {
+    return trimmed as LlmProvider;
+  }
+  return null;
+}
+
+function normalizeProviderList(value: unknown): LlmProvider[] {
+  if (!Array.isArray(value)) return [];
+  const providers = value.map((item) => normalizeProvider(item)).filter((item): item is LlmProvider => item !== null);
+  return Array.from(new Set(providers));
 }
 
 function normalizePolicies(input: unknown): ModelPolicyInput[] {
   const rows: ModelPolicyInput[] = [];
   if (!input || typeof input !== "object") return rows;
 
-  if (Array.isArray(input)) {
-    for (const item of input) {
-      if (!item || typeof item !== "object") continue;
-      const rawEndpoint = typeof (item as any).endpoint === "string" ? (item as any).endpoint.trim() : "";
-      const rawDefaultModel = typeof (item as any).defaultModel === "string" ? (item as any).defaultModel.trim() : "";
-      const allowedInput = Array.isArray((item as any).allowedModels) ? (item as any).allowedModels : [];
-      const rawAllowed = allowedInput
-        .filter((v: unknown): v is string => typeof v === "string")
-        .map((v: string) => v.trim())
-        .filter(Boolean);
-      if (!rawEndpoint) continue;
-      if (!rawDefaultModel && rawAllowed.length === 0) continue;
-      const defaultModel = rawDefaultModel || rawAllowed[0];
-      const allowedModels = rawAllowed.length > 0 ? rawAllowed : [defaultModel];
-      rows.push({ endpoint: rawEndpoint, defaultModel, allowedModels });
+  const entries = Array.isArray(input)
+    ? (input
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const endpoint = typeof (item as { endpoint?: unknown }).endpoint === "string"
+            ? String((item as { endpoint?: unknown }).endpoint).trim()
+            : "";
+          const defaultProvider = normalizeProvider((item as { defaultProvider?: unknown }).defaultProvider) ?? "anthropic";
+          const defaultModel = typeof (item as { defaultModel?: unknown }).defaultModel === "string"
+            ? String((item as { defaultModel?: unknown }).defaultModel).trim()
+            : "";
+          const allowedProvidersRaw = normalizeProviderList((item as { allowedProviders?: unknown }).allowedProviders);
+          const allowedModelsRaw = Array.isArray((item as { allowedModels?: unknown }).allowedModels)
+            ? ((item as { allowedModels?: unknown }).allowedModels as unknown[])
+                .filter((v): v is string => typeof v === "string")
+                .map((v) => v.trim())
+                .filter(Boolean)
+            : [];
+          if (!endpoint) return null;
+          return { endpoint, defaultProvider, defaultModel, allowedProvidersRaw, allowedModelsRaw };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null))
+    : Object.entries(input as Record<string, unknown>).map(([endpointKey, value]) => {
+        if (!value || typeof value !== "object") return null;
+        const endpoint = endpointKey.trim();
+        if (!endpoint) return null;
+        const defaultProvider = normalizeProvider((value as { defaultProvider?: unknown }).defaultProvider) ?? "anthropic";
+        const defaultModel =
+          typeof (value as { defaultModel?: unknown }).defaultModel === "string"
+            ? String((value as { defaultModel?: unknown }).defaultModel).trim()
+            : "";
+        const allowedProvidersRaw = normalizeProviderList((value as { allowedProviders?: unknown }).allowedProviders);
+        const allowedModelsRaw = Array.isArray((value as { allowedModels?: unknown }).allowedModels)
+          ? ((value as { allowedModels?: unknown }).allowedModels as unknown[])
+              .filter((v): v is string => typeof v === "string")
+              .map((v) => v.trim())
+              .filter(Boolean)
+          : typeof (value as { allowedModels?: unknown }).allowedModels === "string"
+            ? String((value as { allowedModels?: unknown }).allowedModels)
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean)
+            : [];
+        return { endpoint, defaultProvider, defaultModel, allowedProvidersRaw, allowedModelsRaw };
+      }).filter((row): row is NonNullable<typeof row> => row !== null);
+
+  for (const row of entries) {
+    const allowedProviders = row.allowedProvidersRaw.length > 0 ? row.allowedProvidersRaw : [row.defaultProvider];
+    if (!allowedProviders.includes(row.defaultProvider)) {
+      allowedProviders.unshift(row.defaultProvider);
     }
-    return rows;
-  }
-
-  for (const [endpointKey, value] of Object.entries(input as Record<string, unknown>)) {
-    if (!value || typeof value !== "object") continue;
-    const endpoint = endpointKey.trim();
-    if (!endpoint) continue;
-
-    const rawDefaultModel = typeof (value as any).defaultModel === "string" ? (value as any).defaultModel.trim() : "";
-    const rawAllowedInput = (value as any).allowedModels;
-    const rawAllowed = Array.isArray(rawAllowedInput)
-      ? rawAllowedInput
-          .filter((v: unknown): v is string => typeof v === "string")
-          .map((v: string) => v.trim())
-          .filter(Boolean)
-      : typeof rawAllowedInput === "string"
-        ? rawAllowedInput.split(",").map((v: string) => v.trim()).filter(Boolean)
-        : [];
-
-    if (!rawDefaultModel && rawAllowed.length === 0) continue;
-    const defaultModel = rawDefaultModel || rawAllowed[0];
-    const allowedModels = rawAllowed.length > 0 ? rawAllowed : [defaultModel];
-    rows.push({ endpoint, defaultModel, allowedModels });
+    const defaultModel = row.defaultModel || "claude-sonnet-4-5";
+    const allowedModels = row.allowedModelsRaw.length > 0 ? row.allowedModelsRaw : [defaultModel];
+    rows.push({
+      endpoint: row.endpoint,
+      defaultProvider: row.defaultProvider,
+      defaultModel,
+      allowedProviders: Array.from(new Set(allowedProviders)),
+      allowedModels: Array.from(new Set(allowedModels))
+    });
   }
 
   return rows;
@@ -59,7 +100,10 @@ function normalizePolicies(input: unknown): ModelPolicyInput[] {
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
       return NextResponse.json(
@@ -72,7 +116,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("workspace_model_policies")
-      .select("endpoint,default_model,allowed_models")
+      .select("endpoint,default_provider,default_model,allowed_providers,allowed_models")
       .eq("workspace_id", workspaceId);
 
     if (error) {
@@ -89,30 +133,41 @@ export async function GET() {
     }
 
     const policies = Object.fromEntries(
-      (data ?? []).map((row: { endpoint: string; default_model: string; allowed_models: unknown }) => [
-        row.endpoint,
-        {
-          defaultModel: row.default_model,
-          allowedModels: Array.isArray(row.allowed_models) ? row.allowed_models : []
-        }
-      ])
+      (data ?? []).map(
+        (row: {
+          endpoint: string;
+          default_provider: string | null;
+          default_model: string;
+          allowed_providers: unknown;
+          allowed_models: unknown;
+        }) => [
+          row.endpoint,
+          {
+            defaultProvider:
+              normalizeProvider(row.default_provider) ?? "anthropic",
+            defaultModel: row.default_model,
+            allowedProviders: normalizeProviderList(row.allowed_providers),
+            allowedModels: Array.isArray(row.allowed_models) ? row.allowed_models : []
+          }
+        ]
+      )
     );
 
     return NextResponse.json({ success: true, policies });
   } catch (error) {
     console.error("Model policies GET proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message } }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
       return NextResponse.json(
@@ -167,7 +222,9 @@ export async function PUT(request: NextRequest) {
         org_id: workspaceRow.org_id,
         workspace_id: workspaceId,
         endpoint: policy.endpoint,
+        default_provider: policy.defaultProvider,
         default_model: policy.defaultModel,
+        allowed_providers: policy.allowedProviders,
         allowed_models: policy.allowedModels,
         updated_by: user.id
       }));
@@ -197,9 +254,6 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Model policies PUT proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json(
-      { success: false, error: { code: "INTERNAL_ERROR", message } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: "INTERNAL_ERROR", message } }, { status: 500 });
   }
 }

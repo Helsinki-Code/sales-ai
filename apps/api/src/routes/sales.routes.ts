@@ -1,11 +1,11 @@
 import { Router, type Response } from "express";
 import { randomUUID } from "node:crypto";
-import { asyncSalesEndpoints, executeSkill, type SalesEndpoint } from "@sales-ai/shared";
+import { asyncSalesEndpoints, executeSkill, llmProviders, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
 import { requireApiKeyOrOAuth } from "../middleware/api-or-oauth-auth.middleware.js";
 import { apiRateLimitMiddleware } from "../middleware/rate-limit.middleware.js";
 import { redis } from "../lib/redis.js";
 import { salesBodySchemaByEndpoint, endpointEnum } from "../schemas/sales.schemas.js";
-import { getAnthropicApiKey } from "../services/provider-credentials.service.js";
+import { getProviderApiKey } from "../services/provider-credentials.service.js";
 import { resolveModelForEndpoint } from "../services/model-policy.service.js";
 import { createJobRecord, findJobByIdempotency } from "../services/jobs.service.js";
 import { salesQueue } from "../jobs/queue.js";
@@ -70,8 +70,18 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
     const schema = salesBodySchemaByEndpoint[endpoint];
     const parsedBody = schema.parse(req.body);
     const requestedModel = typeof req.body?.model === "string" ? req.body.model : undefined;
+    const requestedProviderRaw = typeof req.body?.provider === "string" ? req.body.provider.trim() : undefined;
+    const requestedProvider =
+      requestedProviderRaw && (llmProviders as readonly string[]).includes(requestedProviderRaw)
+        ? (requestedProviderRaw as LlmProvider)
+        : undefined;
 
-    const model = await resolveModelForEndpoint(req.auth.workspaceId, endpoint, requestedModel);
+    const resolvedPolicy = await resolveModelForEndpoint(
+      req.auth.workspaceId,
+      endpoint,
+      requestedModel,
+      requestedProvider
+    );
 
     if (asyncSalesEndpoints.includes(endpoint)) {
       const idempotencyKey = req.header("idempotency-key");
@@ -113,7 +123,8 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
           apiKeyId: req.auth.apiKeyId,
           endpoint,
           input: parsedBody,
-          requestedModel: model,
+          requestedProvider: resolvedPolicy.provider,
+          requestedModel: resolvedPolicy.model,
           requestId: req.requestId
         },
         { jobId }
@@ -129,12 +140,13 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
 
     await ensureUnitsAvailableForRequest(req.auth.orgId, endpoint, parsedBody);
 
-    const anthropicApiKey = await getAnthropicApiKey(req.auth.workspaceId);
+    const providerApiKey = await getProviderApiKey(req.auth.workspaceId, resolvedPolicy.provider);
     const result = await executeSkill({
       endpoint,
       userInput: parsedBody,
-      apiKey: anthropicApiKey,
-      model,
+      apiKey: providerApiKey,
+      provider: resolvedPolicy.provider,
+      model: resolvedPolicy.model,
       redis
     });
 
@@ -156,7 +168,7 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
         workspaceId: req.auth.workspaceId,
         apiKeyId: req.auth.apiKeyId,
         endpoint,
-        model: result.model,
+        model: `${resolvedPolicy.provider}:${result.model}`,
         tokens: result.tokens,
         durationMs: result.durationMs,
         requestId: req.requestId,
@@ -164,8 +176,10 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
         tokenCostUsd: 0,
         managedEstimatedCostUsd: 0,
         totalCostUsd: 0,
-        parallelApiCalls: 0,
-        parallelEnrichmentRuns: 0,
+        managedCrawlerRuns: 0,
+        managedPagesCrawled: 0,
+        managedVerificationRuns: 0,
+        managedCycleCount: 0,
         standardUnitsConsumed: consumed.standardUnits,
         leadUnitsConsumed: consumed.leadUnits
       });
@@ -190,7 +204,7 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
       meta: {
         requestId: req.requestId,
         durationMs: result.durationMs,
-        model: result.model,
+        model: `${resolvedPolicy.provider}:${result.model}`,
         tokensUsed: result.tokens,
         traceId: randomUUID()
       }

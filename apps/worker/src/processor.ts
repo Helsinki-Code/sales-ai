@@ -1,9 +1,10 @@
-import { decryptText, executeSkill, type SalesEndpoint } from "@sales-ai/shared";
+import { decryptText, executeSkill, llmProviders, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
 import type { Job } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
-import { LeadsEngineError, runParallelLeadsEngine } from "./leads-engine.js";
+import { LeadsEngineError as ParallelLeadsEngineError, runParallelLeadsEngine } from "./leads-engine.js";
+import { LeadsEngineError as GooseLeadsEngineError, runGooseLeadsEngine } from "./goose-leads-engine.js";
 import { consumeUnitsForJob, reverseUnitsForJob } from "./unit-billing.js";
 
 export type SalesJobPayload = {
@@ -13,42 +14,75 @@ export type SalesJobPayload = {
   apiKeyId?: string;
   endpoint: SalesEndpoint;
   input: Record<string, unknown>;
+  requestedProvider?: LlmProvider;
   requestedModel?: string;
   requestId: string;
 };
 
 const env = getEnv();
 
-async function getWorkspaceApiKey(workspaceId: string): Promise<string> {
+async function getWorkspaceApiKey(workspaceId: string, provider: LlmProvider): Promise<string> {
   const { data, error } = await supabaseAdmin
     .from("provider_credentials")
     .select("api_key_encrypted,status")
     .eq("workspace_id", workspaceId)
-    .eq("provider", "anthropic")
+    .eq("provider", provider)
     .maybeSingle();
 
   if (error || !data || data.status !== "active") {
-    throw new Error("Workspace Anthropic key is not configured.");
+    throw new Error(`Workspace ${provider} key is not configured.`);
   }
 
   return decryptText(data.api_key_encrypted, env.INTERNAL_ENCRYPTION_KEY);
 }
 
-async function resolveModel(workspaceId: string, endpoint: string, requestedModel?: string): Promise<string> {
+async function resolveModelPolicy(
+  workspaceId: string,
+  endpoint: string,
+  requestedProvider?: LlmProvider,
+  requestedModel?: string
+): Promise<{ provider: LlmProvider; model: string }> {
   const { data } = await supabaseAdmin
     .from("workspace_model_policies")
-    .select("default_model,allowed_models")
+    .select("default_provider,allowed_providers,default_model,allowed_models")
     .eq("workspace_id", workspaceId)
     .eq("endpoint", endpoint)
     .maybeSingle();
 
-  const allowed = (data?.allowed_models as string[] | null) ?? ["claude-sonnet-4-5"];
-  const defaultModel = data?.default_model ?? "claude-sonnet-4-5";
+  const allowedProviders = Array.isArray(data?.allowed_providers)
+    ? data.allowed_providers
+        .filter((value): value is string => typeof value === "string")
+        .filter((value) => (llmProviders as readonly string[]).includes(value))
+    : ["anthropic"];
+  const defaultProvider =
+    typeof data?.default_provider === "string" && (llmProviders as readonly string[]).includes(data.default_provider)
+      ? (data.default_provider as LlmProvider)
+      : "anthropic";
+
+  const provider = requestedProvider ?? defaultProvider;
+  if (!allowedProviders.includes(provider)) {
+    throw new Error(`Requested provider ${provider} is not allowed.`);
+  }
+
+  const defaultModelByProvider: Record<LlmProvider, string> = {
+    anthropic: "claude-sonnet-4-5",
+    openai: "gpt-5.4",
+    gemini: "gemini-2.5-pro"
+  };
+
+  const defaultModel =
+    typeof data?.default_model === "string" && data.default_model.trim().length > 0
+      ? data.default_model
+      : defaultModelByProvider[provider];
+  const allowed = Array.isArray(data?.allowed_models)
+    ? data.allowed_models.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [defaultModel];
+
   if (requestedModel) {
     if (!allowed.includes(requestedModel)) throw new Error(`Requested model ${requestedModel} is not allowed.`);
-    return requestedModel;
+    return { provider, model: requestedModel };
   }
-  return defaultModel;
+  return { provider, model: defaultModel };
 }
 
 async function pushEvent(
@@ -102,6 +136,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
   await updateRunningState("starting", 5, "Worker picked up job.");
 
   let model = "managed-leads-v1";
+  let provider: LlmProvider = "anthropic";
   let resultData: unknown;
   let durationMs = 0;
   let tokens = {
@@ -110,9 +145,11 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     cacheCreationInputTokens: 0,
     cacheReadInputTokens: 0
   };
-  let parallelUsage = {
-    apiCalls: 0,
-    enrichmentRuns: 0,
+  let managedUsage = {
+    crawlerRuns: 0,
+    pagesCrawled: 0,
+    verificationRuns: 0,
+    cycleCount: 0,
     estimatedCostUsd: 0
   };
   let consumedUnits = {
@@ -120,7 +157,43 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     leadUnits: 0
   };
 
-  if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "parallel_v1") {
+  if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "goose_v1") {
+    const resolved = await resolveModelPolicy(
+      payload.workspaceId,
+      payload.endpoint,
+      payload.requestedProvider,
+      payload.requestedModel
+    );
+    provider = resolved.provider;
+    model = resolved.model;
+    const apiKey = await getWorkspaceApiKey(payload.workspaceId, provider);
+
+    const leadsResult = await runGooseLeadsEngine({
+      jobId: payload.jobId,
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      llm: {
+        provider,
+        model,
+        apiKey
+      },
+      input: payload.input,
+      onProgress: async ({ stage, progress, message, metadata }) => {
+        await updateRunningState(stage, progress, message, metadata);
+      }
+    });
+
+    resultData = leadsResult.leads;
+    durationMs = Date.now() - startedAt;
+    model = `${provider}:${resolved.model}`;
+    managedUsage = {
+      crawlerRuns: leadsResult.stats.crawlerRuns,
+      pagesCrawled: leadsResult.stats.pagesCrawled,
+      verificationRuns: leadsResult.stats.verifiedEmailCount,
+      cycleCount: leadsResult.stats.cycleIndex,
+      estimatedCostUsd: Number((leadsResult.stats.crawlerRuns * 0.003).toFixed(6))
+    };
+  } else if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "parallel_v1") {
     const leadsResult = await runParallelLeadsEngine({
       jobId: payload.jobId,
       orgId: payload.orgId,
@@ -134,22 +207,31 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     resultData = leadsResult.leads;
     durationMs = Date.now() - startedAt;
     model = `managed:${leadsResult.stats.generatorUsed}`;
-    parallelUsage = {
-      apiCalls: leadsResult.stats.parallelApiCalls,
-      enrichmentRuns: leadsResult.stats.taskRunIds.length,
+    managedUsage = {
+      crawlerRuns: leadsResult.stats.parallelApiCalls,
+      pagesCrawled: 0,
+      verificationRuns: leadsResult.stats.taskRunIds.length,
+      cycleCount: leadsResult.stats.cyclesCompleted,
       estimatedCostUsd: Number((leadsResult.stats.parallelApiCalls * 0.002).toFixed(6))
     };
   } else {
-    const anthropicApiKey = await getWorkspaceApiKey(payload.workspaceId);
+    const resolved = await resolveModelPolicy(
+      payload.workspaceId,
+      payload.endpoint,
+      payload.requestedProvider,
+      payload.requestedModel
+    );
+    provider = resolved.provider;
+    model = resolved.model;
+    const providerApiKey = await getWorkspaceApiKey(payload.workspaceId, provider);
     await updateRunningState("resolving_model", 15, "Resolved workspace credentials.");
-
-    model = await resolveModel(payload.workspaceId, payload.endpoint, payload.requestedModel);
     await updateRunningState("running_agent", 25, `Running endpoint ${payload.endpoint}...`);
 
     const result = await executeSkill({
       endpoint: payload.endpoint,
       userInput: payload.input,
-      apiKey: anthropicApiKey,
+      apiKey: providerApiKey,
+      provider,
       model,
       redis,
       onProgress: async ({ stage, progress, message }) => {
@@ -159,6 +241,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
 
     resultData = result.data;
     durationMs = result.durationMs;
+    model = `${provider}:${result.model}`;
     tokens = {
       inputTokens: result.tokens.inputTokens ?? 0,
       outputTokens: result.tokens.outputTokens ?? 0,
@@ -195,13 +278,17 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
       duration_ms: durationMs,
       request_id: payload.requestId,
       status: "success",
-      cost_usd: parallelUsage.estimatedCostUsd,
+      cost_usd: managedUsage.estimatedCostUsd,
       token_cost_usd: 0,
-      managed_estimated_cost_usd: parallelUsage.estimatedCostUsd,
-      total_cost_usd: parallelUsage.estimatedCostUsd,
-      parallel_api_calls: parallelUsage.apiCalls,
-      parallel_enrichment_runs: parallelUsage.enrichmentRuns,
-      parallel_estimated_cost_usd: parallelUsage.estimatedCostUsd,
+      managed_estimated_cost_usd: managedUsage.estimatedCostUsd,
+      total_cost_usd: managedUsage.estimatedCostUsd,
+      parallel_api_calls: managedUsage.crawlerRuns,
+      parallel_enrichment_runs: managedUsage.verificationRuns,
+      parallel_estimated_cost_usd: managedUsage.estimatedCostUsd,
+      managed_crawler_runs: managedUsage.crawlerRuns,
+      managed_pages_crawled: managedUsage.pagesCrawled,
+      managed_verification_runs: managedUsage.verificationRuns,
+      managed_cycle_count: managedUsage.cycleCount,
       standard_units_consumed: consumedUnits.standardUnits,
       lead_units_consumed: consumedUnits.leadUnits
     });
@@ -238,7 +325,7 @@ export async function handleSalesJobFailure(job: Job<SalesJobPayload> | undefine
   if (!job) return;
   const maybeCode = (error as Error & { code?: unknown }).code;
   const errorCode =
-    error instanceof LeadsEngineError
+    error instanceof ParallelLeadsEngineError || error instanceof GooseLeadsEngineError
       ? error.code
       : typeof maybeCode === "string"
       ? maybeCode

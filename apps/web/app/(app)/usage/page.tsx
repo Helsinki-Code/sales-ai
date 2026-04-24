@@ -15,8 +15,10 @@ interface UsageRow {
   token_cost_usd: number;
   managed_estimated_cost_usd: number;
   total_cost_usd: number;
-  parallel_api_calls: number;
-  parallel_enrichment_runs: number;
+  managed_crawler_runs: number;
+  managed_pages_crawled: number;
+  managed_verification_runs: number;
+  managed_cycle_count: number;
   standard_units_consumed: number;
   lead_units_consumed: number;
 }
@@ -59,7 +61,7 @@ function formatCurrency(value: number): string {
 }
 
 function isManagedRow(row: UsageRow): boolean {
-  return sanitizeModelLabel(row.model).toLowerCase().includes("managed");
+  return row.endpoint === "leads" || sanitizeModelLabel(row.model).toLowerCase().includes("managed");
 }
 
 function buildTrendPoints(values: number[]): string {
@@ -125,8 +127,12 @@ export default function UsagePage() {
           token_cost_usd: toNumber(row.token_cost_usd),
           managed_estimated_cost_usd: toNumber(row.managed_estimated_cost_usd),
           total_cost_usd: toNumber(row.total_cost_usd || row.cost_usd),
-          parallel_api_calls: toNumber(row.parallel_api_calls),
-          parallel_enrichment_runs: toNumber(row.parallel_enrichment_runs),
+          managed_crawler_runs: toNumber((row as { managed_crawler_runs?: unknown }).managed_crawler_runs),
+          managed_pages_crawled: toNumber((row as { managed_pages_crawled?: unknown }).managed_pages_crawled),
+          managed_verification_runs: toNumber(
+            (row as { managed_verification_runs?: unknown }).managed_verification_runs
+          ),
+          managed_cycle_count: toNumber((row as { managed_cycle_count?: unknown }).managed_cycle_count),
           standard_units_consumed: toNumber(row.standard_units_consumed),
           lead_units_consumed: toNumber(row.lead_units_consumed)
         }));
@@ -412,8 +418,10 @@ export default function UsagePage() {
                   <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Total Cost</th>
                   <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Std Units</th>
                   <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Lead Units</th>
-                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Managed API</th>
-                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Enrichment Runs</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Crawler Runs</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Pages Crawled</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Verification Runs</th>
+                  <th style={{ textAlign: "right", padding: "0.75rem", fontWeight: "600" }}>Cycles</th>
                 </tr>
               </thead>
               <tbody>
@@ -439,8 +447,10 @@ export default function UsagePage() {
                       <td style={{ padding: "0.75rem", textAlign: "right", fontWeight: "600" }}>${row.total_cost_usd.toFixed(4)}</td>
                       <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.standard_units_consumed}</td>
                       <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.lead_units_consumed}</td>
-                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.parallel_api_calls}</td>
-                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.parallel_enrichment_runs}</td>
+                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.managed_crawler_runs}</td>
+                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.managed_pages_crawled}</td>
+                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.managed_verification_runs}</td>
+                      <td style={{ padding: "0.75rem", textAlign: "right" }}>{row.managed_cycle_count}</td>
                     </tr>
                   );
                 })}

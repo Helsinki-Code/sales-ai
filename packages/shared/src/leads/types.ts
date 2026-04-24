@@ -67,6 +67,9 @@ export type LeadV2Item = {
   evidence: LeadEvidence;
   score_breakdown: LeadScoreBreakdown;
   normalization_version: string;
+  email_verification_status?: "deliverable" | "undeliverable";
+  email_verification_confidence?: LeadEnrichmentConfidence;
+  verification_source?: "smtp" | "mx";
 };
 
 export type SellerProfile = {
