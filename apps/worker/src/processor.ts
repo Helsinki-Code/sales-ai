@@ -1,5 +1,5 @@
 import { decryptText, executeSkill, llmProviders, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
-import type { Job } from "bullmq";
+import { Queue, type Job } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
@@ -20,6 +20,20 @@ export type SalesJobPayload = {
 };
 
 const env = getEnv();
+const queueName = "sales-jobs";
+const salesQueue = new Queue<SalesJobPayload>(queueName, {
+  connection: redis,
+  prefix: env.BULLMQ_PREFIX,
+  defaultJobOptions: {
+    removeOnComplete: 1000,
+    removeOnFail: 1000,
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000
+    }
+  }
+});
 
 async function getWorkspaceApiKey(workspaceId: string, provider: LlmProvider): Promise<string> {
   const { data, error } = await supabaseAdmin
@@ -189,10 +203,94 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     managedUsage = {
       crawlerRuns: leadsResult.stats.crawlerRuns,
       pagesCrawled: leadsResult.stats.pagesCrawled,
-      verificationRuns: leadsResult.stats.verifiedEmailCount,
+      verificationRuns: leadsResult.stats.enrichmentAttempts,
       cycleCount: leadsResult.stats.cycleIndex,
-      estimatedCostUsd: Number((leadsResult.stats.crawlerRuns * 0.003).toFixed(6))
+      estimatedCostUsd: Number(
+        (leadsResult.stats.crawlerRuns * 0.003 + leadsResult.stats.enrichmentAttempts * 0.002).toFixed(6)
+      )
     };
+
+    if (leadsResult.cancelled) {
+      await supabaseAdmin
+        .from("jobs")
+        .update({
+          status: "cancelled",
+          stage: "cancelled",
+          progress: 100,
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", payload.jobId);
+      await pushEvent(payload.jobId, payload.workspaceId, "cancelled", 100, "Job cancelled by user.");
+      return;
+    }
+
+    if (leadsResult.needsContinuation && leadsResult.continuationState) {
+      const continuationSliceIndex = leadsResult.sliceIndex + 1;
+      const nextInput = {
+        ...payload.input,
+        __goose_state: leadsResult.continuationState
+      };
+      const { data: jobRow } = await supabaseAdmin
+        .from("jobs")
+        .select("status")
+        .eq("id", payload.jobId)
+        .maybeSingle();
+      if (jobRow?.status === "cancelled") {
+        await pushEvent(payload.jobId, payload.workspaceId, "cancelled", 100, "Job cancelled by user.");
+        return;
+      }
+
+      await updateRunningState(
+        "continuation_enqueue",
+        95,
+        `Slice ${leadsResult.sliceIndex} complete. Queueing continuation slice ${continuationSliceIndex}.`,
+        {
+          continuation_slice_index: continuationSliceIndex,
+          accepted_so_far: leadsResult.leads.length,
+          missing_count: Math.max(0, Number(payload.input.count ?? 0) - leadsResult.leads.length),
+          rejection_by_reason: leadsResult.rejectionByReason,
+          enrichment_attempts: leadsResult.stats.enrichmentAttempts,
+          enrichment_successes: leadsResult.stats.enrichmentSuccesses
+        }
+      );
+
+      await salesQueue.add(
+        "sales-job",
+        {
+          ...payload,
+          input: nextInput,
+          requestedProvider: resolved.provider,
+          requestedModel: resolved.model
+        },
+        {
+          jobId: `${payload.jobId}:slice:${continuationSliceIndex}:${Date.now()}`
+        }
+      );
+
+      await supabaseAdmin
+        .from("jobs")
+        .update({
+          status: "running",
+          stage: "running",
+          progress: 92
+        })
+        .eq("id", payload.jobId);
+
+      await pushEvent(
+        payload.jobId,
+        payload.workspaceId,
+        "running",
+        92,
+        `Continuation slice ${continuationSliceIndex} queued.`,
+        {
+          continuation_slice_index: continuationSliceIndex,
+          accepted_so_far: leadsResult.leads.length,
+          missing_count: Math.max(0, Number(payload.input.count ?? 0) - leadsResult.leads.length),
+          rejection_by_reason: leadsResult.rejectionByReason
+        }
+      );
+      return;
+    }
   } else if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "parallel_v1") {
     const leadsResult = await runParallelLeadsEngine({
       jobId: payload.jobId,

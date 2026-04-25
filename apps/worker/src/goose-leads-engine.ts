@@ -4,6 +4,9 @@ import { z } from "zod";
 import {
   computeLeadScore,
   leadGradeFromScore,
+  ParallelApiError,
+  ParallelClient,
+  isRetryableParallelError,
   runAgent,
   runPythonJsonCommand,
   type LeadV2Item,
@@ -110,6 +113,44 @@ type LeadsEngineRunInput = {
   onProgress: (progress: LeadsEngineProgress) => Promise<void>;
 };
 
+const gooseContinuationStateSchema = z.object({
+  slice_index: z.number().int().min(0).default(0),
+  accepted_leads: z.array(z.any()).default([]),
+  accepted_domains: z.array(z.string()).default([]),
+  reviewed_domains: z.array(z.string()).default([]),
+  seen_domains: z.array(z.string()).default([]),
+  stats: z
+    .object({
+      cycleIndex: z.number().int().default(0),
+      crawlerRuns: z.number().int().default(0),
+      pagesCrawled: z.number().int().default(0),
+      searchResultsSeen: z.number().int().default(0),
+      verifiedEmailCount: z.number().int().default(0),
+      rejectedQuality: z.number().int().default(0),
+      rejectedEmail: z.number().int().default(0),
+      acceptedCount: z.number().int().default(0),
+      queries: z.array(z.string()).default([]),
+      enrichmentAttempts: z.number().int().default(0),
+      enrichmentSuccesses: z.number().int().default(0)
+    })
+    .default({
+      cycleIndex: 0,
+      crawlerRuns: 0,
+      pagesCrawled: 0,
+      searchResultsSeen: 0,
+      verifiedEmailCount: 0,
+      rejectedQuality: 0,
+      rejectedEmail: 0,
+      acceptedCount: 0,
+      queries: [],
+      enrichmentAttempts: 0,
+      enrichmentSuccesses: 0
+    }),
+  seller_profile: z.any().optional(),
+  extracted_icp: z.any().optional(),
+  rejection_by_reason: z.record(z.number().int()).default({})
+});
+
 type LeadRunStats = {
   cycleIndex: number;
   crawlerRuns: number;
@@ -120,6 +161,8 @@ type LeadRunStats = {
   rejectedEmail: number;
   acceptedCount: number;
   queries: string[];
+  enrichmentAttempts: number;
+  enrichmentSuccesses: number;
 };
 
 export type LeadsEngineProgress = {
@@ -134,8 +177,14 @@ export class LeadsEngineError extends Error {
     public readonly code:
       | "CRAWLER_TIMEOUT"
       | "CRAWLER_BLOCKED"
+      | "PARALLEL_AUTH_ERROR"
+      | "PARALLEL_RATE_LIMITED"
+      | "PARALLEL_TIMEOUT"
+      | "PARALLEL_SCHEMA_INVALID"
+      | "PARALLEL_UPSTREAM_ERROR"
       | "EMAIL_VERIFICATION_FAILED"
-      | "INSUFFICIENT_QUALIFIED_LEADS",
+      | "INSUFFICIENT_QUALIFIED_LEADS"
+      | "JOB_CANCELLED",
     message: string
   ) {
     super(message);
@@ -156,6 +205,16 @@ type FirecrawlSearchResult = {
   title: string;
   description: string;
 };
+
+const contactEnrichmentOutputSchema = z.object({
+  contact_name: z.string().default(""),
+  contact_title: z.string().default(""),
+  contact_email: z.string().default(""),
+  contact_phone: z.string().default(""),
+  contact_linkedin: z.string().default(""),
+  confidence: z.enum(["high", "medium", "low"]).default("medium"),
+  basis: z.array(z.string()).default([])
+});
 
 class FirecrawlError extends Error {
   constructor(
@@ -226,6 +285,191 @@ Rules:
 - Reject ambiguous candidates.
 - Provide compact reasons and flags.
 `.trim();
+
+const CONTACT_ENRICHMENT_SCHEMA_JSON: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    contact_name: { type: "string" },
+    contact_title: { type: "string" },
+    contact_email: { type: "string" },
+    contact_phone: { type: "string" },
+    contact_linkedin: { type: "string" },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+    basis: { type: "array", items: { type: "string" } }
+  },
+  required: ["contact_name", "contact_title", "contact_email", "contact_phone", "contact_linkedin", "confidence", "basis"],
+  additionalProperties: false
+};
+
+const ROLE_EMAIL_PREFIXES = new Set([
+  "info",
+  "sales",
+  "hello",
+  "support",
+  "contact",
+  "admin",
+  "team",
+  "office",
+  "hr",
+  "jobs",
+  "careers",
+  "marketing",
+  "press",
+  "media",
+  "billing",
+  "accounts",
+  "service"
+]);
+
+function incrementCount(counter: Record<string, number>, key: string): void {
+  counter[key] = (counter[key] ?? 0) + 1;
+}
+
+function toTaskMetadata(values: Record<string, unknown>): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (value == null) continue;
+    output[key] = typeof value === "string" ? value : JSON.stringify(value);
+  }
+  return output;
+}
+
+async function withParallelRetry<T>(label: string, operation: () => Promise<T>): Promise<T> {
+  const maxAttempts = 3;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const retryable = isRetryableParallelError(error);
+      if (!retryable || attempt >= maxAttempts) break;
+      const waitMs = Math.min(12000, 1000 * 2 ** attempt);
+      logger.warn({ label, attempt, waitMs, error }, "Parallel enrichment failed; retrying.");
+      await sleep(waitMs);
+    }
+  }
+
+  if (lastError instanceof ParallelApiError) {
+    throw new LeadsEngineError(lastError.code, `${label} failed: ${lastError.message}`);
+  }
+  if (lastError instanceof Error) {
+    throw new LeadsEngineError("PARALLEL_UPSTREAM_ERROR", `${label} failed: ${lastError.message}`);
+  }
+  throw new LeadsEngineError("PARALLEL_UPSTREAM_ERROR", `${label} failed due to unknown error.`);
+}
+
+function normalizePhoneE164Like(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  let normalized = trimmed.replace(/[^\d+]/g, "");
+  if (normalized.startsWith("00")) normalized = `+${normalized.slice(2)}`;
+  if (!normalized.startsWith("+")) {
+    const digits = normalized.replace(/\D/g, "");
+    if (digits.length === 10) {
+      normalized = `+1${digits}`;
+    } else if (digits.length >= 8 && digits.length <= 15) {
+      normalized = `+${digits}`;
+    } else {
+      return "";
+    }
+  }
+  const digits = normalized.replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 15) return "";
+  return `+${digits}`;
+}
+
+function isValidContactLinkedin(url: string): boolean {
+  return /^https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[a-z0-9\-_%]+\/?$/i.test(url.trim());
+}
+
+function isValidContactName(name: string): boolean {
+  const cleaned = name.trim();
+  if (!cleaned) return false;
+  if (/^unknown$/i.test(cleaned)) return false;
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return false;
+  return /^[a-zA-Z][a-zA-Z' -]+$/.test(cleaned);
+}
+
+function isDirectPersonEmail(email: string, companyDomain: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const basicEmailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+  if (!basicEmailRegex.test(normalized)) return false;
+  const [localPart, domainPart] = normalized.split("@");
+  if (!localPart || !domainPart) return false;
+  if (ROLE_EMAIL_PREFIXES.has(localPart)) return false;
+  if (!domainPart.endsWith(companyDomain)) return false;
+  return true;
+}
+
+async function getJobStatus(jobId: string, workspaceId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("jobs")
+    .select("status")
+    .eq("id", jobId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (error) return null;
+  return typeof data?.status === "string" ? data.status : null;
+}
+
+async function runParallelContactEnrichment(params: {
+  client: ParallelClient;
+  candidate: GooseCrawlerCandidate;
+  sellerUrl: string;
+  icp: ExtractedIcp;
+  cycleIndex: number;
+  jobId: string;
+}): Promise<z.output<typeof contactEnrichmentOutputSchema>> {
+  const inputPayload = {
+    seller_url: params.sellerUrl,
+    candidate: {
+      company_name: params.candidate.company_name,
+      company_website: params.candidate.company_website,
+      company_description: params.candidate.company_description,
+      email_candidates: params.candidate.email_candidates,
+      contact_candidates: params.candidate.contact_candidates,
+      evidence_urls: params.candidate.evidence_urls
+    },
+    icp_persona_titles: params.icp.persona_titles.slice(0, 6),
+    strict_requirement:
+      "Return a direct person contact with deliverable corporate email, person linkedin profile and phone number."
+  };
+
+  const created = await withParallelRetry("contact_enrichment_run_create", () =>
+    params.client.createTaskRun({
+      input: inputPayload,
+      processor: env.PARALLEL_TASK_PROCESSOR,
+      task_spec: {
+        output_schema: {
+          type: "json",
+          json_schema: CONTACT_ENRICHMENT_SCHEMA_JSON
+        }
+      },
+      metadata: toTaskMetadata({
+        job_id: params.jobId,
+        cycle_index: params.cycleIndex,
+        company: params.candidate.company_name || params.candidate.company_website
+      })
+    })
+  );
+
+  const result = await withParallelRetry("contact_enrichment_run_result", () =>
+    params.client.retrieveTaskRunResult(created.run_id, 240)
+  );
+
+  if (result.run.status !== "completed") {
+    const detail = result.run.error?.message?.trim() || `status ${result.run.status}`;
+    throw new LeadsEngineError("PARALLEL_UPSTREAM_ERROR", `contact_enrichment failed: ${detail}`);
+  }
+
+  const parsed = contactEnrichmentOutputSchema.safeParse(result.output.content);
+  if (!parsed.success) {
+    throw new LeadsEngineError("PARALLEL_SCHEMA_INVALID", "contact_enrichment failed: Invalid task output schema.");
+  }
+  return parsed.data;
+}
 
 function normalizeUrl(url: string): string {
   return url.endsWith("/") ? url.slice(0, -1) : url;
@@ -851,6 +1095,14 @@ async function saveLeadRunSnapshot(
   stats: LeadRunStats,
   status: string,
   durationMs: number,
+  extras?: {
+    rejectionByReason?: Record<string, number>;
+    acceptedLeads?: LeadV2Item[];
+    acceptedDomains?: string[];
+    reviewedDomains?: string[];
+    seenDomains?: string[];
+    sliceIndex?: number;
+  },
   errorCode?: string,
   errorMessage?: string
 ): Promise<void> {
@@ -880,11 +1132,19 @@ async function saveLeadRunSnapshot(
     enriched_count: stats.verifiedEmailCount,
     crawler_runs: stats.crawlerRuns,
     pages_crawled: stats.pagesCrawled,
-    verification_runs: stats.verifiedEmailCount,
+    verification_runs: stats.enrichmentAttempts,
     cycle_diagnostics: {
       queries: stats.queries,
       firecrawl_results_seen: stats.searchResultsSeen,
-      firecrawl_pages_scraped: stats.pagesCrawled
+      firecrawl_pages_scraped: stats.pagesCrawled,
+      rejection_by_reason: extras?.rejectionByReason ?? {},
+      accepted_leads: extras?.acceptedLeads ?? [],
+      accepted_domains: extras?.acceptedDomains ?? [],
+      reviewed_domains: extras?.reviewedDomains ?? [],
+      seen_domains: extras?.seenDomains ?? [],
+      continuation_slice_index: extras?.sliceIndex ?? 0,
+      enrichment_attempts: stats.enrichmentAttempts,
+      enrichment_successes: stats.enrichmentSuccesses
     }
   };
 
@@ -896,6 +1156,11 @@ async function saveLeadRunSnapshot(
 
 export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
   leads: LeadV2Item[];
+  needsContinuation: boolean;
+  cancelled?: boolean;
+  continuationState?: Record<string, unknown>;
+  rejectionByReason: Record<string, number>;
+  sliceIndex: number;
   stats: {
     crawlerRuns: number;
     pagesCrawled: number;
@@ -903,76 +1168,153 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
     rejectedQuality: number;
     rejectedEmail: number;
     cycleIndex: number;
+    enrichmentAttempts: number;
+    enrichmentSuccesses: number;
   };
 }> {
   const startedAt = Date.now();
+  const continuationRaw =
+    input.input && typeof input.input === "object" && "__goose_state" in input.input
+      ? (input.input.__goose_state as unknown)
+      : undefined;
+  const continuationState = gooseContinuationStateSchema.safeParse(continuationRaw).success
+    ? gooseContinuationStateSchema.parse(continuationRaw)
+    : null;
+
   const parsedInput = leadsInputSchema.parse(input.input);
   const normalizedUrl = normalizeUrl(parsedInput.url);
   const requestedCount = parsedInput.count;
   const sellerDomain = extractDomain(normalizedUrl);
+  const maxCyclesPerSlice = Math.max(1, env.GOOSE_MAX_CYCLES_PER_SLICE);
+  const sliceIndex = (continuationState?.slice_index ?? 0) + 1;
+  const rejectionByReason: Record<string, number> = { ...(continuationState?.rejection_by_reason ?? {}) };
 
   await input.onProgress({
     stage: "normalize_input",
     progress: 5,
     message: "Validated lead request input.",
-    metadata: { requested_count: requestedCount, seller_domain: sellerDomain }
+    metadata: {
+      requested_count: requestedCount,
+      seller_domain: sellerDomain,
+      continuation_slice_index: sliceIndex
+    }
   });
 
-  await input.onProgress({
-    stage: "seller_profile",
-    progress: 12,
-    message: "Extracting seller profile from website."
-  });
+  let sellerProfile: SellerProfile;
+  let extractedIcp: ExtractedIcp;
+  if (continuationState?.seller_profile && continuationState?.extracted_icp) {
+    sellerProfile = continuationState.seller_profile as SellerProfile;
+    extractedIcp = icpExtractionSchema.parse(continuationState.extracted_icp);
+  } else {
+    await input.onProgress({
+      stage: "seller_profile",
+      progress: 12,
+      message: "Extracting seller profile from website."
+    });
 
-  const sellerProfileRaw = await runPythonJsonCommand<Record<string, unknown>>("analyze_prospect.py", {
-    args: ["--url", normalizedUrl, "--output", "json"],
-    timeoutMs: 90000
-  });
-  const sellerProfile = toSellerProfile(sellerProfileRaw);
+    const sellerProfileRaw = await runPythonJsonCommand<Record<string, unknown>>("analyze_prospect.py", {
+      args: ["--url", normalizedUrl, "--output", "json"],
+      timeoutMs: 90000
+    });
+    sellerProfile = toSellerProfile(sellerProfileRaw);
 
-  await input.onProgress({
-    stage: "icp_extraction",
-    progress: 18,
-    message: "Generating strict ICP from seller profile."
-  });
+    await input.onProgress({
+      stage: "icp_extraction",
+      progress: 18,
+      message: "Generating strict ICP from seller profile."
+    });
 
-  const icpResult = await runAgent<ExtractedIcp>({
-    apiKey: input.llm.apiKey,
-    provider: input.llm.provider,
-    model: input.llm.model,
-    systemPrompt: ICP_SYSTEM_PROMPT,
-    userPrompt: JSON.stringify({
-      seller_url: normalizedUrl,
-      seller_profile: sellerProfile
-    }),
-    redis: null,
-    maxTokens: 2000
-  });
+    const icpResult = await runAgent<ExtractedIcp>({
+      apiKey: input.llm.apiKey,
+      provider: input.llm.provider,
+      model: input.llm.model,
+      systemPrompt: ICP_SYSTEM_PROMPT,
+      userPrompt: JSON.stringify({
+        seller_url: normalizedUrl,
+        seller_profile: sellerProfile
+      }),
+      redis: null,
+      maxTokens: 2000
+    });
 
-  const extractedIcp = icpExtractionSchema.parse(icpResult.data);
-  if (extractedIcp.confidence === "low") {
-    throw new LeadsEngineError("INSUFFICIENT_QUALIFIED_LEADS", "ICP extraction confidence is low for strict matching.");
+    extractedIcp = icpExtractionSchema.parse(icpResult.data);
+    if (extractedIcp.confidence === "low") {
+      throw new LeadsEngineError("INSUFFICIENT_QUALIFIED_LEADS", "ICP extraction confidence is low for strict matching.");
+    }
   }
 
-  const acceptedLeads: LeadV2Item[] = [];
-  const acceptedDomains = new Set<string>();
-  const reviewedDomains = new Set<string>();
+  const acceptedLeads: LeadV2Item[] = Array.isArray(continuationState?.accepted_leads)
+    ? (continuationState?.accepted_leads as LeadV2Item[])
+    : [];
+  const acceptedDomains = new Set<string>(continuationState?.accepted_domains ?? []);
+  const reviewedDomains = new Set<string>(continuationState?.reviewed_domains ?? []);
 
   const stats: LeadRunStats = {
-    cycleIndex: 0,
-    crawlerRuns: 0,
-    pagesCrawled: 0,
-    searchResultsSeen: 0,
-    verifiedEmailCount: 0,
-    rejectedQuality: 0,
-    rejectedEmail: 0,
-    acceptedCount: 0,
-    queries: []
+    cycleIndex: continuationState?.stats.cycleIndex ?? 0,
+    crawlerRuns: continuationState?.stats.crawlerRuns ?? 0,
+    pagesCrawled: continuationState?.stats.pagesCrawled ?? 0,
+    searchResultsSeen: continuationState?.stats.searchResultsSeen ?? 0,
+    verifiedEmailCount: continuationState?.stats.verifiedEmailCount ?? 0,
+    rejectedQuality: continuationState?.stats.rejectedQuality ?? 0,
+    rejectedEmail: continuationState?.stats.rejectedEmail ?? 0,
+    acceptedCount: continuationState?.stats.acceptedCount ?? acceptedLeads.length,
+    queries: continuationState?.stats.queries ?? [],
+    enrichmentAttempts: continuationState?.stats.enrichmentAttempts ?? 0,
+    enrichmentSuccesses: continuationState?.stats.enrichmentSuccesses ?? 0
   };
-  const seenDomains = new Set<string>([sellerDomain]);
+  const seenDomains = new Set<string>([sellerDomain, ...(continuationState?.seen_domains ?? [])]);
   let consecutiveZeroAcceptCycles = 0;
+  let cyclesThisSlice = 0;
 
-  while (acceptedLeads.length < requestedCount) {
+  if (!env.PARALLEL_API_KEY) {
+    throw new LeadsEngineError("PARALLEL_AUTH_ERROR", "PARALLEL_API_KEY is required for premium contact enrichment.");
+  }
+  const parallelClient = new ParallelClient({
+    apiKey: env.PARALLEL_API_KEY,
+    baseUrl: env.PARALLEL_BASE_URL,
+    timeoutMs: env.PARALLEL_TIMEOUT_MS,
+    findAllBetaHeader: env.PARALLEL_FINDALL_BETA_HEADER
+  });
+
+  while (acceptedLeads.length < requestedCount && cyclesThisSlice < maxCyclesPerSlice) {
+    const jobStatus = await getJobStatus(input.jobId, input.workspaceId);
+    if (jobStatus === "cancelled") {
+      await saveLeadRunSnapshot(
+        input.jobId,
+        input.orgId,
+        input.workspaceId,
+        stats,
+        "running",
+        Date.now() - startedAt,
+        {
+          rejectionByReason,
+          acceptedLeads,
+          acceptedDomains: Array.from(acceptedDomains),
+          reviewedDomains: Array.from(reviewedDomains),
+          seenDomains: Array.from(seenDomains),
+          sliceIndex
+        }
+      );
+      return {
+        leads: acceptedLeads.slice(0, requestedCount),
+        needsContinuation: false,
+        cancelled: true,
+        rejectionByReason,
+        sliceIndex,
+        stats: {
+          crawlerRuns: stats.crawlerRuns,
+          pagesCrawled: stats.pagesCrawled,
+          verifiedEmailCount: stats.verifiedEmailCount,
+          rejectedQuality: stats.rejectedQuality,
+          rejectedEmail: stats.rejectedEmail,
+          cycleIndex: stats.cycleIndex,
+          enrichmentAttempts: stats.enrichmentAttempts,
+          enrichmentSuccesses: stats.enrichmentSuccesses
+        }
+      };
+    }
+
+    cyclesThisSlice += 1;
     stats.cycleIndex += 1;
     const missingCount = requestedCount - acceptedLeads.length;
     const acceptedBeforeCycle = acceptedLeads.length;
@@ -984,7 +1326,8 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
       metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
         firecrawl_queries_used: stats.queries.slice(-5),
         firecrawl_results_seen: stats.searchResultsSeen,
-        firecrawl_pages_scraped: stats.pagesCrawled
+        firecrawl_pages_scraped: stats.pagesCrawled,
+        continuation_slice_index: sliceIndex
       })
     });
 
@@ -1096,14 +1439,71 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
       if (!candidate) continue;
       const key = candidateKey(candidate, idx);
       const decision = qualityMap.get(key);
-      if (!decision || decision.verdict !== "accept") {
+      if (!decision || decision.verdict !== "accept" || decision.quality_review_confidence !== "high") {
         stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, !decision ? "missing_quality_decision" : decision.verdict !== "accept" ? "quality_reject" : "quality_confidence_not_high");
         continue;
       }
 
-      const emailCandidates = candidate.email_candidates
-        .map((entry) => entry.email.trim().toLowerCase())
-        .filter((entry) => entry.length > 0);
+      await input.onProgress({
+        stage: "contact_enrichment",
+        progress: Math.min(86, 44 + stats.cycleIndex * 6),
+        message: `Cycle ${stats.cycleIndex}: enriching contact profile for ${candidate.company_name || candidate.company_website}.`,
+        metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
+          enrichment_attempts: stats.enrichmentAttempts,
+          enrichment_successes: stats.enrichmentSuccesses
+        })
+      });
+
+      stats.enrichmentAttempts += 1;
+      let enrichedContact: z.output<typeof contactEnrichmentOutputSchema> | null = null;
+      try {
+        enrichedContact = await runParallelContactEnrichment({
+          client: parallelClient,
+          candidate,
+          sellerUrl: normalizedUrl,
+          icp: extractedIcp,
+          cycleIndex: stats.cycleIndex,
+          jobId: input.jobId
+        });
+        stats.enrichmentSuccesses += 1;
+      } catch (error) {
+        stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, "enrichment_failed");
+        if (error instanceof LeadsEngineError && error.code === "PARALLEL_AUTH_ERROR") throw error;
+        continue;
+      }
+
+      const inferredContact = inferContact(candidate);
+      const contactName = (enrichedContact.contact_name || inferredContact.name || "").trim();
+      const contactTitle = (enrichedContact.contact_title || inferredContact.title || "").trim();
+      const contactLinkedin = (enrichedContact.contact_linkedin || inferredContact.linkedin || "").trim();
+      const normalizedPhone = normalizePhoneE164Like(enrichedContact.contact_phone || inferredContact.phone || "");
+
+      if (!isValidContactName(contactName)) {
+        stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, "missing_contact_name");
+        continue;
+      }
+      if (!isValidContactLinkedin(contactLinkedin)) {
+        stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, "missing_linkedin");
+        continue;
+      }
+      if (!normalizedPhone) {
+        stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, "missing_phone");
+        continue;
+      }
+
+      const leadDomain = extractDomain(candidate.company_website || candidate.company_name);
+      const emailCandidates = Array.from(
+        new Set(
+          [enrichedContact.contact_email, ...candidate.email_candidates.map((entry) => entry.email)]
+            .map((entry) => entry.trim().toLowerCase())
+            .filter((entry) => entry.length > 0)
+        )
+      );
       let selectedEmail = "";
       let verification: EmailVerificationResult | null = null;
 
@@ -1118,6 +1518,9 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
       });
 
       for (const email of emailCandidates) {
+        if (!isDirectPersonEmail(email, leadDomain)) {
+          continue;
+        }
         const emailVerification = await verifyEmailDeliverable(email);
         if (emailVerification.status === "deliverable") {
           selectedEmail = email;
@@ -1128,10 +1531,10 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
 
       if (!verification || !selectedEmail) {
         stats.rejectedEmail += 1;
+        incrementCount(rejectionByReason, "role_inbox_email");
         continue;
       }
 
-      const contact = inferContact(candidate);
       const scoreBreakdown = computeLeadScore({
         companyIndustry: inferCompanyIndustry(candidate, extractedIcp),
         companySizeEmployees: extractedIcp.company_size_bands[0] ?? "",
@@ -1147,8 +1550,12 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         hasRecentHiringFlag: candidate.evidence_urls.some((url) => /career|job|hiring/i.test(url)),
         hasGrowthSignalFlag: candidate.intent_signals.length > 1
       });
+      if (scoreBreakdown.total < 60) {
+        stats.rejectedQuality += 1;
+        incrementCount(rejectionByReason, "low_score");
+        continue;
+      }
 
-      const leadDomain = extractDomain(candidate.company_website || candidate.company_name);
       if (leadDomain && acceptedDomains.has(leadDomain)) continue;
       if (leadDomain) acceptedDomains.add(leadDomain);
 
@@ -1162,11 +1569,11 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         company_funding_recent_date: "",
         company_linkedin: candidate.company_linkedin,
         company_description: candidate.company_description,
-        contact_name: contact.name,
-        contact_title: contact.title,
+        contact_name: contactName,
+        contact_title: contactTitle,
         contact_email: selectedEmail,
-        contact_linkedin: contact.linkedin,
-        contact_phone: contact.phone,
+        contact_linkedin: contactLinkedin,
+        contact_phone: normalizedPhone,
         email_confidence: verification.verification_confidence === "high" ? "confirmed" : "pattern_derived",
         recent_funding_flag: candidate.evidence_urls.some((url) => /fund|series|invest/i.test(url)),
         recent_hiring_flag: candidate.evidence_urls.some((url) => /career|job|hiring/i.test(url)),
@@ -1176,7 +1583,7 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         fit_reason: `Strict ICP match with verified deliverable email. Grade ${leadGradeFromScore(scoreBreakdown.total)}.`,
         source_provider: "managed",
         source_run_id: `goose_cycle_${stats.cycleIndex}`,
-        enrichment_confidence: "medium",
+        enrichment_confidence: enrichedContact.confidence,
         quality_review_confidence: decision.quality_review_confidence,
         icp_match_reasons: decision.icp_match_reasons,
         rejection_flags: [],
@@ -1219,7 +1626,11 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
           firecrawl_queries_used: stats.queries.slice(-8),
           firecrawl_results_seen: stats.searchResultsSeen,
           firecrawl_pages_scraped: stats.pagesCrawled
-        }
+        },
+        rejection_by_reason: rejectionByReason,
+        enrichment_attempts: stats.enrichmentAttempts,
+        enrichment_successes: stats.enrichmentSuccesses,
+        contact_completeness_rate: acceptedLeads.length > 0 ? 1 : 0
       })
     });
 
@@ -1248,20 +1659,31 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
 
   acceptedLeads.sort((a, b) => b.score - a.score);
   const finalLeads = acceptedLeads.slice(0, requestedCount);
+  const needsContinuation = finalLeads.length < requestedCount;
 
   await saveLeadRunSnapshot(
     input.jobId,
     input.orgId,
     input.workspaceId,
     stats,
-    "complete",
-    Date.now() - startedAt
+    needsContinuation ? "running" : "complete",
+    Date.now() - startedAt,
+    {
+      rejectionByReason,
+      acceptedLeads: finalLeads,
+      acceptedDomains: Array.from(acceptedDomains),
+      reviewedDomains: Array.from(reviewedDomains),
+      seenDomains: Array.from(seenDomains),
+      sliceIndex
+    }
   );
 
   await input.onProgress({
-    stage: "persist_result",
-    progress: 96,
-    message: "Goose leads result is ready for persistence.",
+    stage: needsContinuation ? "slice_pause" : "persist_result",
+    progress: needsContinuation ? 92 : 96,
+    message: needsContinuation
+      ? `Slice ${sliceIndex} complete: ${finalLeads.length}/${requestedCount}. Queueing continuation.`
+      : "Goose leads result is ready for persistence.",
     metadata: buildCycleMetadata(stats.cycleIndex, finalLeads.length, requestedCount, {
       verified_email_count: stats.verifiedEmailCount,
       rejection_counts: {
@@ -1276,19 +1698,42 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         firecrawl_queries_used: stats.queries.slice(-10),
         firecrawl_results_seen: stats.searchResultsSeen,
         firecrawl_pages_scraped: stats.pagesCrawled
-      }
+      },
+      rejection_by_reason: rejectionByReason,
+      enrichment_attempts: stats.enrichmentAttempts,
+      enrichment_successes: stats.enrichmentSuccesses,
+      continuation_slice_index: sliceIndex,
+      contact_completeness_rate: finalLeads.length > 0 ? 1 : 0
     })
   });
 
   return {
     leads: finalLeads,
+    needsContinuation,
+    continuationState: needsContinuation
+      ? {
+          slice_index: sliceIndex,
+          accepted_leads: finalLeads,
+          accepted_domains: Array.from(acceptedDomains),
+          reviewed_domains: Array.from(reviewedDomains),
+          seen_domains: Array.from(seenDomains),
+          seller_profile: sellerProfile,
+          extracted_icp: extractedIcp,
+          rejection_by_reason: rejectionByReason,
+          stats
+        }
+      : undefined,
+    rejectionByReason,
+    sliceIndex,
     stats: {
       crawlerRuns: stats.crawlerRuns,
       pagesCrawled: stats.pagesCrawled,
       verifiedEmailCount: stats.verifiedEmailCount,
       rejectedQuality: stats.rejectedQuality,
       rejectedEmail: stats.rejectedEmail,
-      cycleIndex: stats.cycleIndex
+      cycleIndex: stats.cycleIndex,
+      enrichmentAttempts: stats.enrichmentAttempts,
+      enrichmentSuccesses: stats.enrichmentSuccesses
     }
   };
 }
