@@ -16,20 +16,22 @@
 
 ### Leads (`/sales/leads`) runtime
 - Guarded by `LEADS_ENGINE_MODE`.
-- In `parallel_v1` mode, leads uses a dedicated Parallel-only engine path in worker (no Tavily/LLM fallback).
+- In `goose_v1` mode, leads uses a dedicated Firecrawl-first discovery path in worker (no Parallel fallback).
 - Stage pipeline:
   - `normalize_input`
   - `seller_profile`
-  - `findall_discovery`
+  - `icp_extraction`
+  - `crawler_discovery`
   - `candidate_dedupe`
-  - `task_enrichment`
+  - `quality_review`
+  - `contact_email_verify`
   - `deterministic_scoring`
   - `persist_result`
-- Deterministic in-house scoring/governance applies evidence thresholds before returning qualified leads.
+- Deterministic in-house scoring/governance applies strict ICP + verified-email gates before returning qualified leads.
 - Job events include stage metadata for dynamic progress and diagnostics.
 
 ## Data ownership
 - Durable state in Supabase Postgres.
 - Queue/caching in Redis.
 - Existing sales assets are vendored at `vendor/ai-sales-team/{skills,scripts,agents,templates}` and reused read-only by path.
-- Leads run traces persist in `public.leads_runs` (Parallel run IDs, retries, candidate funnel metrics, evidence coverage).
+- Leads run traces persist in `public.leads_runs` (cycle metrics, crawler telemetry, candidate funnel metrics, evidence coverage).

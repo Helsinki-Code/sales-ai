@@ -75,7 +75,7 @@ const gooseCrawlerCandidateSchema = z.object({
 });
 
 const gooseCrawlerOutputSchema = z.object({
-  runtime: z.string().default("browser_harness_primary"),
+  runtime: z.string().default("firecrawl_primary"),
   used_browser_harness: z.boolean().default(false),
   queries: z.array(z.string()).default([]),
   company_candidates: z.array(gooseCrawlerCandidateSchema).default([]),
@@ -114,6 +114,7 @@ type LeadRunStats = {
   cycleIndex: number;
   crawlerRuns: number;
   pagesCrawled: number;
+  searchResultsSeen: number;
   verifiedEmailCount: number;
   rejectedQuality: number;
   rejectedEmail: number;
@@ -149,6 +150,42 @@ type EmailVerificationResult = {
   reason: string;
   verified_at: string;
 };
+
+type FirecrawlSearchResult = {
+  url: string;
+  title: string;
+  description: string;
+};
+
+class FirecrawlError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly operation?: "search" | "scrape",
+    public readonly retryable: boolean = false
+  ) {
+    super(message);
+    this.name = "FirecrawlError";
+  }
+}
+
+const FIRECRAWL_BASE_URL = "https://api.firecrawl.dev/v2";
+const EXCLUDED_DISCOVERY_DOMAINS = [
+  "linkedin.com",
+  "facebook.com",
+  "instagram.com",
+  "x.com",
+  "twitter.com",
+  "youtube.com",
+  "reddit.com",
+  "wikipedia.org",
+  "crunchbase.com",
+  "g2.com",
+  "capterra.com"
+];
+const DISCOVERY_LINK_KEYWORDS = ["about", "team", "leadership", "contact", "company", "careers", "jobs", "blog", "press"];
+const EMAIL_REGEX = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+const LINKEDIN_COMPANY_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/company\/[a-z0-9\-_/]+/i;
 
 const ICP_SYSTEM_PROMPT = `
 You are a strict ICP extraction system.
@@ -201,6 +238,386 @@ function extractDomain(input: string): string {
   } catch {
     return input.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0]?.toLowerCase() ?? input;
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeWebsite(value: string): string {
+  const parsed = new URL(value.startsWith("http") ? value : `https://${value}`);
+  return `${parsed.protocol}//${parsed.hostname}`;
+}
+
+function isDomainExcluded(domain: string, sellerDomain: string): boolean {
+  const normalized = domain.toLowerCase();
+  if (!normalized || !normalized.includes(".")) return true;
+  if (normalized === sellerDomain) return true;
+  return EXCLUDED_DISCOVERY_DOMAINS.some(
+    (blocked) => normalized === blocked || normalized.endsWith(`.${blocked}`)
+  );
+}
+
+function extractMarkdownLinks(markdown: string): string[] {
+  const urls = new Set<string>();
+  const regex = /\[[^\]]+]\((https?:\/\/[^\s)]+)\)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(markdown)) !== null) {
+    const url = match[1]?.trim();
+    if (!url) continue;
+    urls.add(url);
+    if (urls.size >= 80) break;
+  }
+  return Array.from(urls);
+}
+
+function extractEmails(text: string): string[] {
+  const emails = new Set<string>();
+  const matches = text.match(EMAIL_REGEX) ?? [];
+  for (const match of matches) {
+    const email = match.trim().toLowerCase();
+    if (email.endsWith(".png") || email.endsWith(".jpg") || email.endsWith(".jpeg") || email.endsWith(".svg")) continue;
+    emails.add(email);
+  }
+  return Array.from(emails).slice(0, 12);
+}
+
+function inferContactCandidatesFromEmails(
+  emails: string[]
+): Array<{ name: string; title: string; email: string; source_url: string }> {
+  return emails
+    .slice(0, 8)
+    .map((email) => {
+      const local = email.split("@")[0] ?? "";
+      const normalized = local.replace(/[_-]/g, ".").split(".").filter((part) => part.length > 0);
+      const maybeName =
+        normalized.length >= 2 && normalized.length <= 3
+          ? normalized.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ")
+          : "";
+      return {
+        name: maybeName,
+        title: "",
+        email,
+        source_url: ""
+      };
+    })
+    .filter((entry) => entry.email.length > 0);
+}
+
+function buildBaseQueries(icp: ExtractedIcp, sellerDomain: string): string[] {
+  const industries = icp.industry_taxonomy.slice(0, 3);
+  const useCases = icp.must_have_use_case_signals.slice(0, 3);
+  const geos = icp.geo_hints.slice(0, 2);
+  const strict = icp.strict_must_match.slice(0, 3);
+
+  const queries = new Set<string>();
+  for (const industry of industries.length > 0 ? industries : ["b2b software"]) {
+    queries.add(`${industry} companies`);
+    for (const signal of useCases) {
+      queries.add(`${industry} ${signal} companies`);
+    }
+    for (const geo of geos) {
+      queries.add(`${industry} companies ${geo}`);
+    }
+  }
+  for (const constraint of strict) {
+    queries.add(`${constraint} b2b companies`);
+  }
+  queries.add(`companies similar to ${sellerDomain}`);
+  return Array.from(queries).slice(0, 24);
+}
+
+function mutateQuery(baseQuery: string, mutationRound: number, icp: ExtractedIcp): string {
+  const adjacentTerms = [
+    ...icp.must_have_use_case_signals.slice(0, 3),
+    ...icp.persona_titles.slice(0, 2)
+  ].filter((value) => value.trim().length > 0);
+  const adjacent = adjacentTerms.length > 0 ? adjacentTerms[mutationRound % adjacentTerms.length] : "";
+
+  switch (mutationRound % 5) {
+    case 1:
+      return `${baseQuery} b2b saas`;
+    case 2:
+      return `${baseQuery} venture backed startup`;
+    case 3:
+      return adjacent ? `${baseQuery} ${adjacent}` : `${baseQuery} engineering team`;
+    case 4:
+      return `${baseQuery} leadership contact email`;
+    default:
+      return baseQuery;
+  }
+}
+
+function buildCycleQueries(icp: ExtractedIcp, sellerDomain: string, cycleIndex: number): string[] {
+  const baseQueries = buildBaseQueries(icp, sellerDomain);
+  const selectedBase = baseQueries[(cycleIndex - 1) % baseQueries.length] ?? `companies similar to ${sellerDomain}`;
+  const mutationRound = Math.floor((cycleIndex - 1) / Math.max(1, baseQueries.length));
+  const primary = mutateQuery(selectedBase, mutationRound, icp);
+  const secondarySignal = icp.must_have_use_case_signals[(cycleIndex - 1) % Math.max(1, icp.must_have_use_case_signals.length)] ?? "";
+  const secondary = secondarySignal ? `${primary} ${secondarySignal}` : `${primary} b2b`;
+  return Array.from(new Set([primary, secondary])).slice(0, 2);
+}
+
+async function firecrawlRequest(
+  operation: "search" | "scrape",
+  payload: Record<string, unknown>,
+  timeoutMs: number
+): Promise<Record<string, unknown>> {
+  const apiKey = env.FIRECRAWL_API_KEY;
+  if (!apiKey) {
+    throw new FirecrawlError("FIRECRAWL_API_KEY is missing for goose_v1.", 500, operation, false);
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${FIRECRAWL_BASE_URL}/${operation}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    const raw = await response.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    } catch {
+      parsed = {};
+    }
+    if (!response.ok) {
+      const retryable = response.status === 429 || response.status >= 500;
+      throw new FirecrawlError(
+        `Firecrawl ${operation} failed with status ${response.status}: ${raw.slice(0, 220)}`,
+        response.status,
+        operation,
+        retryable
+      );
+    }
+    return parsed;
+  } catch (error) {
+    if (error instanceof FirecrawlError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new FirecrawlError(`Firecrawl ${operation} timed out after ${timeoutMs}ms`, 408, operation, true);
+    }
+    const message = error instanceof Error ? error.message : `Firecrawl ${operation} failed`;
+    throw new FirecrawlError(message, undefined, operation, true);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function firecrawlSearch(query: string, limit: number): Promise<FirecrawlSearchResult[]> {
+  const response = await firecrawlRequest(
+    "search",
+    {
+      query,
+      limit
+    },
+    Math.max(10000, env.GOOSE_CRAWLER_TIMEOUT_MS)
+  );
+  const data = (response.data as Record<string, unknown> | unknown[] | undefined) ?? response;
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray((data as Record<string, unknown> | undefined)?.web)
+    ? (((data as Record<string, unknown>).web as unknown[]) ?? [])
+    : [];
+  const parsed: FirecrawlSearchResult[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const value = row as Record<string, unknown>;
+    const url = typeof value.url === "string" ? value.url : typeof value.link === "string" ? value.link : "";
+    if (!url) continue;
+    parsed.push({
+      url,
+      title: typeof value.title === "string" ? value.title : "",
+      description: typeof value.description === "string" ? value.description : typeof value.snippet === "string" ? value.snippet : ""
+    });
+  }
+  return parsed;
+}
+
+async function firecrawlScrape(url: string): Promise<{ markdown: string; links: string[]; title: string }> {
+  const response = await firecrawlRequest(
+    "scrape",
+    {
+      url,
+      formats: ["markdown"],
+      onlyMainContent: true,
+      timeout: env.FIRECRAWL_SCRAPE_TIMEOUT_MS
+    },
+    env.FIRECRAWL_SCRAPE_TIMEOUT_MS + 6000
+  );
+  const data = ((response.data as Record<string, unknown> | undefined) ?? response) as Record<string, unknown>;
+  const markdown = typeof data.markdown === "string" ? data.markdown : "";
+  const metadata = (data.metadata as Record<string, unknown> | undefined) ?? {};
+  const title = typeof metadata.title === "string" ? metadata.title : "";
+  const linksFromPayload = Array.isArray(data.links) ? data.links.filter((v): v is string => typeof v === "string") : [];
+  const links = Array.from(new Set([...linksFromPayload, ...extractMarkdownLinks(markdown)])).slice(0, 80);
+  return { markdown, links, title };
+}
+
+function buildIntentSignals(icp: ExtractedIcp, content: string): string[] {
+  const lowerContent = content.toLowerCase();
+  const terms = Array.from(
+    new Set(
+      [...icp.industry_taxonomy, ...icp.must_have_use_case_signals, ...icp.strict_must_match]
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
+  return terms.filter((term) => lowerContent.includes(term.toLowerCase())).slice(0, 12);
+}
+
+function inferCompanyName(searchTitle: string, fallbackDomain: string, scrapedTitle: string): string {
+  const value = [scrapedTitle, searchTitle]
+    .map((item) => item.trim())
+    .find((item) => item.length > 0);
+  if (value) {
+    return value.split("|")[0]?.split("-")[0]?.trim() ?? value;
+  }
+  return fallbackDomain.split(".")[0]?.replace(/[-_]/g, " ") ?? fallbackDomain;
+}
+
+async function discoverWithFirecrawl(params: {
+  sellerUrl: string;
+  icp: ExtractedIcp;
+  cycleIndex: number;
+  missingCount: number;
+  seenDomains: Set<string>;
+}): Promise<GooseCrawlerOutput> {
+  const sellerDomain = extractDomain(params.sellerUrl);
+  const cycleQueries = buildCycleQueries(params.icp, sellerDomain, params.cycleIndex);
+  const searchLimit = Math.max(5, Math.min(env.FIRECRAWL_SEARCH_LIMIT, params.missingCount * 3));
+  const candidateLimit = Math.max(4, Math.min(env.FIRECRAWL_PER_CYCLE_MAX_CANDIDATES, params.missingCount + 2));
+  const perCompanyPageCap = Math.max(2, Math.min(4, env.GOOSE_CRAWLER_MAX_PAGES));
+
+  const allResults: FirecrawlSearchResult[] = [];
+  for (const query of cycleQueries) {
+    const rows = await firecrawlSearch(query, searchLimit);
+    allResults.push(...rows);
+  }
+
+  const selected: FirecrawlSearchResult[] = [];
+  for (const row of allResults) {
+    try {
+      const domain = extractDomain(row.url);
+      if (isDomainExcluded(domain, sellerDomain)) continue;
+      if (params.seenDomains.has(domain)) continue;
+      params.seenDomains.add(domain);
+      selected.push(row);
+      if (selected.length >= candidateLimit) break;
+    } catch {
+      continue;
+    }
+  }
+
+  const companyCandidates: GooseCrawlerCandidate[] = [];
+  let totalPagesCrawled = 0;
+  for (const row of selected) {
+    let rootUrl = "";
+    try {
+      rootUrl = normalizeWebsite(row.url);
+    } catch {
+      continue;
+    }
+
+    const pagesToScrape = new Set<string>([rootUrl, row.url]);
+    const evidenceUrls: string[] = [];
+    const contentChunks: string[] = [];
+    const emailSourceMap = new Map<string, string>();
+    let linkedinCompany = "";
+    let discoveredLinks: string[] = [];
+    let scrapedTitle = "";
+
+    for (const pageUrl of Array.from(pagesToScrape).slice(0, perCompanyPageCap)) {
+      try {
+        const scraped = await firecrawlScrape(pageUrl);
+        totalPagesCrawled += 1;
+        evidenceUrls.push(pageUrl);
+        if (scraped.title) scrapedTitle = scrapedTitle || scraped.title;
+        if (scraped.markdown) {
+          contentChunks.push(scraped.markdown.slice(0, 6000));
+          const emails = extractEmails(scraped.markdown);
+          for (const email of emails) {
+            if (!emailSourceMap.has(email)) emailSourceMap.set(email, pageUrl);
+          }
+          const linkedin = scraped.markdown.match(LINKEDIN_COMPANY_REGEX)?.[0];
+          if (linkedin && !linkedinCompany) linkedinCompany = linkedin;
+        }
+        discoveredLinks = discoveredLinks.concat(scraped.links);
+      } catch {
+        continue;
+      }
+    }
+
+    if (discoveredLinks.length > 0) {
+      const internalFocus = discoveredLinks
+        .filter((link) => extractDomain(link) === extractDomain(rootUrl))
+        .filter((link) => DISCOVERY_LINK_KEYWORDS.some((keyword) => link.toLowerCase().includes(keyword)))
+        .slice(0, Math.max(0, perCompanyPageCap - evidenceUrls.length));
+      for (const link of internalFocus) {
+        if (evidenceUrls.includes(link)) continue;
+        try {
+          const scraped = await firecrawlScrape(link);
+          totalPagesCrawled += 1;
+          evidenceUrls.push(link);
+          if (scraped.markdown) {
+            contentChunks.push(scraped.markdown.slice(0, 6000));
+            const emails = extractEmails(scraped.markdown);
+            for (const email of emails) {
+              if (!emailSourceMap.has(email)) emailSourceMap.set(email, link);
+            }
+            const linkedin = scraped.markdown.match(LINKEDIN_COMPANY_REGEX)?.[0];
+            if (linkedin && !linkedinCompany) linkedinCompany = linkedin;
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    const combinedContent = contentChunks.join("\n");
+    const emails = Array.from(emailSourceMap.keys()).slice(0, 12);
+    const emailCandidates = emails.map((email) => ({
+      email,
+      source_url: emailSourceMap.get(email) ?? rootUrl,
+      confidence: "pattern_derived"
+    }));
+    const contactCandidates = inferContactCandidatesFromEmails(emails).map((entry) => ({
+      ...entry,
+      source_url: emailSourceMap.get(entry.email) ?? rootUrl
+    }));
+    const domain = extractDomain(rootUrl);
+    const intentSignals = buildIntentSignals(params.icp, combinedContent);
+    const description = row.description || combinedContent.slice(0, 400);
+
+    companyCandidates.push({
+      company_name: inferCompanyName(row.title, domain, scrapedTitle),
+      company_website: rootUrl,
+      company_description: description,
+      company_linkedin: linkedinCompany,
+      evidence_urls: Array.from(new Set(evidenceUrls)).slice(0, 20),
+      intent_signals: intentSignals,
+      pages_crawled: evidenceUrls.length,
+      email_candidates: emailCandidates,
+      contact_candidates: contactCandidates
+    });
+  }
+
+  return gooseCrawlerOutputSchema.parse({
+    runtime: "firecrawl_primary",
+    used_browser_harness: false,
+    queries: cycleQueries,
+    company_candidates: companyCandidates,
+    crawl_stats: {
+      search_results: allResults.length,
+      pages_crawled: totalPagesCrawled,
+      companies_crawled: companyCandidates.length
+    }
+  });
 }
 
 function toSellerProfile(raw: Record<string, unknown>): SellerProfile {
@@ -465,7 +882,9 @@ async function saveLeadRunSnapshot(
     pages_crawled: stats.pagesCrawled,
     verification_runs: stats.verifiedEmailCount,
     cycle_diagnostics: {
-      queries: stats.queries
+      queries: stats.queries,
+      firecrawl_results_seen: stats.searchResultsSeen,
+      firecrawl_pages_scraped: stats.pagesCrawled
     }
   };
 
@@ -543,52 +962,71 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
     cycleIndex: 0,
     crawlerRuns: 0,
     pagesCrawled: 0,
+    searchResultsSeen: 0,
     verifiedEmailCount: 0,
     rejectedQuality: 0,
     rejectedEmail: 0,
     acceptedCount: 0,
     queries: []
   };
+  const seenDomains = new Set<string>([sellerDomain]);
+  let consecutiveZeroAcceptCycles = 0;
 
   while (acceptedLeads.length < requestedCount) {
     stats.cycleIndex += 1;
     const missingCount = requestedCount - acceptedLeads.length;
+    const acceptedBeforeCycle = acceptedLeads.length;
 
     await input.onProgress({
       stage: "crawler_discovery",
       progress: Math.min(55, 20 + stats.cycleIndex * 8),
-      message: `Cycle ${stats.cycleIndex}: crawling candidate companies for ${missingCount} missing leads.`,
-      metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount)
+      message: `Cycle ${stats.cycleIndex}: running Firecrawl discovery for ${missingCount} missing leads.`,
+      metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
+        firecrawl_queries_used: stats.queries.slice(-5),
+        firecrawl_results_seen: stats.searchResultsSeen,
+        firecrawl_pages_scraped: stats.pagesCrawled
+      })
     });
 
-    let crawlerOutputRaw: GooseCrawlerOutput;
+    let crawlerOutput: GooseCrawlerOutput;
     try {
-      crawlerOutputRaw = await runPythonJsonCommand<GooseCrawlerOutput>("goose_crawler.py", {
-        args: [
-          "--url",
-          normalizedUrl,
-          "--count",
-          String(missingCount),
-          "--icp-json",
-          JSON.stringify(extractedIcp),
-          "--max-pages",
-          String(env.GOOSE_CRAWLER_MAX_PAGES),
-          "--timeout",
-          String(Math.max(4, Math.round(env.GOOSE_CRAWLER_TIMEOUT_MS / 1000)))
-        ],
-        timeoutMs: env.GOOSE_CRAWLER_TIMEOUT_MS + 30000
+      crawlerOutput = await discoverWithFirecrawl({
+        sellerUrl: normalizedUrl,
+        icp: extractedIcp,
+        cycleIndex: stats.cycleIndex,
+        missingCount,
+        seenDomains
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Goose crawler failed.";
-      if (/timeout/i.test(message)) {
+      const message = error instanceof Error ? error.message : "Firecrawl discovery failed.";
+      if (error instanceof FirecrawlError && (error.retryable || error.status === 429)) {
+        const retryDelayMs = Math.min(45000, 2500 * Math.max(1, stats.cycleIndex % 6));
+        await input.onProgress({
+          stage: "crawler_discovery",
+          progress: Math.min(60, 22 + stats.cycleIndex * 8),
+          message: `Cycle ${stats.cycleIndex}: Firecrawl ${error.operation ?? "request"} retry in ${Math.round(
+            retryDelayMs / 1000
+          )}s.`,
+          metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
+            firecrawl_error_status: error.status ?? "unknown",
+            firecrawl_error_message: message.slice(0, 220),
+            firecrawl_queries_used: stats.queries.slice(-5),
+            firecrawl_results_seen: stats.searchResultsSeen,
+            firecrawl_pages_scraped: stats.pagesCrawled
+          })
+        });
+        await sleep(retryDelayMs);
+        continue;
+      }
+      if (error instanceof FirecrawlError && error.status === 408) {
         throw new LeadsEngineError("CRAWLER_TIMEOUT", message);
       }
       throw new LeadsEngineError("CRAWLER_BLOCKED", message);
     }
 
-    const crawlerOutput = gooseCrawlerOutputSchema.parse(crawlerOutputRaw);
     stats.crawlerRuns += 1;
     stats.pagesCrawled += crawlerOutput.crawl_stats.pages_crawled;
+    stats.searchResultsSeen += crawlerOutput.crawl_stats.search_results;
     stats.queries = Array.from(new Set([...stats.queries, ...crawlerOutput.queries])).slice(0, 20);
 
     const dedupedCandidates = crawlerOutput.company_candidates.filter((candidate, index) => {
@@ -605,20 +1043,29 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
       metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
         candidates_discovered: crawlerOutput.company_candidates.length,
         candidates_deduped: dedupedCandidates.length,
-        pages_crawled: stats.pagesCrawled
+        pages_crawled: stats.pagesCrawled,
+        firecrawl_queries_used: crawlerOutput.queries,
+        firecrawl_results_seen: stats.searchResultsSeen,
+        firecrawl_pages_scraped: stats.pagesCrawled
       })
     });
 
     if (dedupedCandidates.length === 0) {
+      const noCandidateBackoffMs = Math.min(60000, 3000 + stats.cycleIndex * 500);
       await input.onProgress({
         stage: "crawler_discovery",
         progress: Math.min(68, 30 + stats.cycleIndex * 8),
-        message: `Cycle ${stats.cycleIndex}: no candidates found, retrying strict crawl.`,
+        message: `Cycle ${stats.cycleIndex}: no new candidates from Firecrawl, backoff ${Math.round(
+          noCandidateBackoffMs / 1000
+        )}s before next strict cycle.`,
         metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
           crawler_runtime: crawlerOutput.runtime,
-          used_browser_harness: crawlerOutput.used_browser_harness
+          firecrawl_queries_used: crawlerOutput.queries,
+          firecrawl_results_seen: stats.searchResultsSeen,
+          firecrawl_pages_scraped: stats.pagesCrawled
         })
       });
+      await sleep(noCandidateBackoffMs);
       continue;
     }
 
@@ -767,9 +1214,36 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         crawler_coverage: {
           runs: stats.crawlerRuns,
           pages_crawled: stats.pagesCrawled
+        },
+        firecrawl_telemetry: {
+          firecrawl_queries_used: stats.queries.slice(-8),
+          firecrawl_results_seen: stats.searchResultsSeen,
+          firecrawl_pages_scraped: stats.pagesCrawled
         }
       })
     });
+
+    const acceptedThisCycle = acceptedLeads.length - acceptedBeforeCycle;
+    if (acceptedThisCycle === 0) {
+      consecutiveZeroAcceptCycles += 1;
+      const adaptiveBackoffMs = Math.min(120000, 3500 * 2 ** Math.min(5, consecutiveZeroAcceptCycles - 1));
+      await input.onProgress({
+        stage: "crawler_discovery",
+        progress: Math.min(90, 58 + stats.cycleIndex * 6),
+        message: `Cycle ${stats.cycleIndex}: zero accepted leads, adaptive retry in ${Math.round(
+          adaptiveBackoffMs / 1000
+        )}s.`,
+        metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
+          zero_accept_cycles: consecutiveZeroAcceptCycles,
+          firecrawl_queries_used: stats.queries.slice(-8),
+          firecrawl_results_seen: stats.searchResultsSeen,
+          firecrawl_pages_scraped: stats.pagesCrawled
+        })
+      });
+      await sleep(adaptiveBackoffMs);
+    } else {
+      consecutiveZeroAcceptCycles = 0;
+    }
   }
 
   acceptedLeads.sort((a, b) => b.score - a.score);
@@ -797,27 +1271,14 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
       crawler_coverage: {
         runs: stats.crawlerRuns,
         pages_crawled: stats.pagesCrawled
+      },
+      firecrawl_telemetry: {
+        firecrawl_queries_used: stats.queries.slice(-10),
+        firecrawl_results_seen: stats.searchResultsSeen,
+        firecrawl_pages_scraped: stats.pagesCrawled
       }
     })
   });
-
-  if (finalLeads.length < requestedCount) {
-    const error = new LeadsEngineError(
-      "INSUFFICIENT_QUALIFIED_LEADS",
-      `Only ${finalLeads.length} leads passed strict quality + email verification gates out of ${requestedCount}.`
-    );
-    await saveLeadRunSnapshot(
-      input.jobId,
-      input.orgId,
-      input.workspaceId,
-      stats,
-      "failed",
-      Date.now() - startedAt,
-      error.code,
-      error.message
-    );
-    throw error;
-  }
 
   return {
     leads: finalLeads,
