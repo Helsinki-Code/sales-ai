@@ -24,14 +24,23 @@ const schema = z
     FIRECRAWL_API_KEY: z.string().optional(),
     FIRECRAWL_SEARCH_LIMIT: z.coerce.number().default(12),
     FIRECRAWL_SCRAPE_TIMEOUT_MS: z.coerce.number().default(25000),
-    FIRECRAWL_PER_CYCLE_MAX_CANDIDATES: z.coerce.number().default(8)
+    FIRECRAWL_PER_CYCLE_MAX_CANDIDATES: z.coerce.number().default(8),
+    APIFY_TOKEN: z.string().optional(),
+    APIFY_WAIT_FOR_FINISH_SECS: z.coerce.number().default(240),
+    APIFY_MAX_RESULTS_PER_CYCLE: z.coerce.number().default(24),
+    APIFY_PROXY_GROUPS: z.string().default("AUTO"),
+    APIFY_USE_RESIDENTIAL: z.coerce.boolean().default(true),
+    APIFY_DISCOVERY_PARALLEL_PARTITIONS: z.coerce.number().default(4),
+    APIFY_LOCAL_MODE_ENABLED: z.coerce.boolean().default(true),
+    LEADS_ANYMAILFINDER_ENABLED: z.coerce.boolean().default(false),
+    ANYMAILFINDER_API_KEY: z.string().optional()
   })
   .superRefine((value, ctx) => {
-    if (value.LEADS_ENGINE_MODE === "goose_v1" && (!value.FIRECRAWL_API_KEY || value.FIRECRAWL_API_KEY.trim().length === 0)) {
+    if (value.LEADS_ENGINE_MODE === "goose_v1" && (!value.APIFY_TOKEN || value.APIFY_TOKEN.trim().length === 0)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "FIRECRAWL_API_KEY is required when LEADS_ENGINE_MODE=goose_v1",
-        path: ["FIRECRAWL_API_KEY"]
+        message: "APIFY_TOKEN is required when LEADS_ENGINE_MODE=goose_v1",
+        path: ["APIFY_TOKEN"]
       });
     }
   });

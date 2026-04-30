@@ -47,6 +47,17 @@ const qualityDecisionSchema = z.object({
 const qualityReviewSchema = z.object({
   decisions: z.array(qualityDecisionSchema).default([])
 });
+const classificationSchema = z.object({
+  classifications: z
+    .array(
+      z.object({
+        candidate_id: z.string(),
+        label: z.enum(["fit", "unclear", "mismatch"]),
+        reason: z.string().default("")
+      })
+    )
+    .default([])
+});
 
 const gooseCrawlerCandidateSchema = z.object({
   company_name: z.string().default(""),
@@ -229,6 +240,7 @@ class FirecrawlError extends Error {
 }
 
 const FIRECRAWL_BASE_URL = "https://api.firecrawl.dev/v2";
+const APIFY_BASE_URL = "https://api.apify.com/v2";
 const EXCLUDED_DISCOVERY_DOMAINS = [
   "linkedin.com",
   "facebook.com",
@@ -284,6 +296,24 @@ Rules:
 - Accept only candidates matching strict ICP.
 - Reject ambiguous candidates.
 - Provide compact reasons and flags.
+`.trim();
+
+const CLASSIFICATION_SYSTEM_PROMPT = `
+You are a strict B2B lead classifier.
+Return valid JSON only:
+{
+  "classifications": [
+    {
+      "candidate_id": string,
+      "label": "fit" | "unclear" | "mismatch",
+      "reason": string
+    }
+  ]
+}
+Rules:
+- fit: candidate clearly aligns with seller ICP and product category.
+- unclear: partial/ambiguous signals; use caution.
+- mismatch: service/provider/segment mismatch.
 `.trim();
 
 const CONTACT_ENRICHMENT_SCHEMA_JSON: Record<string, unknown> = {
@@ -602,6 +632,70 @@ function buildCycleQueries(icp: ExtractedIcp, sellerDomain: string, cycleIndex: 
   return Array.from(new Set([primary, secondary])).slice(0, 2);
 }
 
+type ApifyRunResponse = {
+  data?: {
+    id?: string;
+    status?: string;
+    defaultDatasetId?: string;
+  };
+};
+
+type ApifyDatasetResponse = {
+  items?: Array<Record<string, unknown>>;
+};
+
+async function apifyRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!env.APIFY_TOKEN) {
+    throw new LeadsEngineError("CRAWLER_BLOCKED", "APIFY_TOKEN missing for goose_v1.");
+  }
+  const response = await fetch(`${APIFY_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${env.APIFY_TOKEN}`,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {})
+    }
+  });
+  const raw = await response.text();
+  let parsed: unknown = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = {};
+  }
+  if (!response.ok) {
+    const message = `Apify request failed ${response.status}: ${raw.slice(0, 220)}`;
+    if (response.status === 429 || response.status >= 500) {
+      throw new FirecrawlError(message, response.status, "search", true);
+    }
+    throw new FirecrawlError(message, response.status, "search", false);
+  }
+  return parsed as T;
+}
+
+async function runApifyActor(actorId: string, input: Record<string, unknown>): Promise<{ runId: string; datasetId: string }> {
+  const run = await apifyRequest<ApifyRunResponse>(
+    `/acts/${encodeURIComponent(actorId)}/runs?waitForFinish=${Math.max(30, env.APIFY_WAIT_FOR_FINISH_SECS)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(input)
+    }
+  );
+  const runId = run.data?.id;
+  const datasetId = run.data?.defaultDatasetId;
+  if (!runId || !datasetId) {
+    throw new FirecrawlError(`Apify actor ${actorId} did not return run id or dataset id`, 500, "search", false);
+  }
+  return { runId, datasetId };
+}
+
+async function apifyDatasetItems(datasetId: string, limit: number): Promise<Array<Record<string, unknown>>> {
+  const response = await apifyRequest<ApifyDatasetResponse>(
+    `/datasets/${encodeURIComponent(datasetId)}/items?clean=true&format=json&limit=${Math.max(1, limit)}`
+  );
+  return Array.isArray(response.items) ? response.items : [];
+}
+
 async function firecrawlRequest(
   operation: "search" | "scrape",
   payload: Record<string, unknown>,
@@ -725,7 +819,7 @@ function inferCompanyName(searchTitle: string, fallbackDomain: string, scrapedTi
   return fallbackDomain.split(".")[0]?.replace(/[-_]/g, " ") ?? fallbackDomain;
 }
 
-async function discoverWithFirecrawl(params: {
+async function discoverWithApify(params: {
   sellerUrl: string;
   icp: ExtractedIcp;
   cycleIndex: number;
@@ -734,117 +828,87 @@ async function discoverWithFirecrawl(params: {
 }): Promise<GooseCrawlerOutput> {
   const sellerDomain = extractDomain(params.sellerUrl);
   const cycleQueries = buildCycleQueries(params.icp, sellerDomain, params.cycleIndex);
-  const searchLimit = Math.max(5, Math.min(env.FIRECRAWL_SEARCH_LIMIT, params.missingCount * 3));
-  const candidateLimit = Math.max(4, Math.min(env.FIRECRAWL_PER_CYCLE_MAX_CANDIDATES, params.missingCount + 2));
-  const perCompanyPageCap = Math.max(2, Math.min(4, env.GOOSE_CRAWLER_MAX_PAGES));
-
+  const searchLimit = Math.max(8, Math.min(env.APIFY_MAX_RESULTS_PER_CYCLE, params.missingCount * 4));
+  const candidateLimit = Math.max(4, Math.min(env.APIFY_MAX_RESULTS_PER_CYCLE, params.missingCount + 4));
+  const companyCandidates: GooseCrawlerCandidate[] = [];
   const allResults: FirecrawlSearchResult[] = [];
-  for (const query of cycleQueries) {
-    const rows = await firecrawlSearch(query, searchLimit);
-    allResults.push(...rows);
-  }
 
-  const selected: FirecrawlSearchResult[] = [];
-  for (const row of allResults) {
-    try {
-      const domain = extractDomain(row.url);
-      if (isDomainExcluded(domain, sellerDomain)) continue;
-      if (params.seenDomains.has(domain)) continue;
-      params.seenDomains.add(domain);
-      selected.push(row);
-      if (selected.length >= candidateLimit) break;
-    } catch {
-      continue;
+  for (const query of cycleQueries) {
+    const actor = env.APIFY_LOCAL_MODE_ENABLED && params.icp.geo_hints.length > 0 ? "compass/crawler-google-places" : "apify/google-search-scraper";
+    const actorInput =
+      actor === "compass/crawler-google-places"
+        ? { searchStringsArray: [query], maxCrawledPlacesPerSearch: searchLimit }
+        : { queries: query, maxPagesPerQuery: 1, resultsPerPage: Math.min(10, searchLimit) };
+    const { datasetId } = await runApifyActor(actor, actorInput);
+    const items = await apifyDatasetItems(datasetId, searchLimit);
+    for (const item of items) {
+      const url =
+        typeof item.url === "string"
+          ? item.url
+          : typeof item.website === "string"
+          ? item.website
+          : typeof item.link === "string"
+          ? item.link
+          : "";
+      if (!url) continue;
+      allResults.push({
+        url,
+        title: typeof item.title === "string" ? item.title : typeof item.name === "string" ? item.name : "",
+        description:
+          typeof item.description === "string"
+            ? item.description
+            : typeof item.snippet === "string"
+            ? item.snippet
+            : typeof item.categoryName === "string"
+            ? item.categoryName
+            : ""
+      });
     }
   }
 
-  const companyCandidates: GooseCrawlerCandidate[] = [];
+  const perCompanyPageCap = Math.max(2, Math.min(4, env.GOOSE_CRAWLER_MAX_PAGES));
   let totalPagesCrawled = 0;
-  for (const row of selected) {
+  for (const row of allResults) {
+    if (companyCandidates.length >= candidateLimit) break;
+    const domain = extractDomain(row.url);
+    if (isDomainExcluded(domain, sellerDomain)) continue;
+    if (params.seenDomains.has(domain)) continue;
+    params.seenDomains.add(domain);
     let rootUrl = "";
     try {
       rootUrl = normalizeWebsite(row.url);
     } catch {
       continue;
     }
-
-    const pagesToScrape = new Set<string>([rootUrl, row.url]);
+    const pagesToScrape = [rootUrl];
     const evidenceUrls: string[] = [];
     const contentChunks: string[] = [];
     const emailSourceMap = new Map<string, string>();
-    let linkedinCompany = "";
-    let discoveredLinks: string[] = [];
-    let scrapedTitle = "";
-
-    for (const pageUrl of Array.from(pagesToScrape).slice(0, perCompanyPageCap)) {
+    for (const pageUrl of pagesToScrape.slice(0, perCompanyPageCap)) {
       try {
         const scraped = await firecrawlScrape(pageUrl);
         totalPagesCrawled += 1;
         evidenceUrls.push(pageUrl);
-        if (scraped.title) scrapedTitle = scrapedTitle || scraped.title;
-        if (scraped.markdown) {
-          contentChunks.push(scraped.markdown.slice(0, 6000));
-          const emails = extractEmails(scraped.markdown);
-          for (const email of emails) {
-            if (!emailSourceMap.has(email)) emailSourceMap.set(email, pageUrl);
-          }
-          const linkedin = scraped.markdown.match(LINKEDIN_COMPANY_REGEX)?.[0];
-          if (linkedin && !linkedinCompany) linkedinCompany = linkedin;
+        contentChunks.push(scraped.markdown.slice(0, 6000));
+        const emails = extractEmails(scraped.markdown);
+        for (const email of emails) {
+          if (!emailSourceMap.has(email)) emailSourceMap.set(email, pageUrl);
         }
-        discoveredLinks = discoveredLinks.concat(scraped.links);
       } catch {
         continue;
       }
     }
-
-    if (discoveredLinks.length > 0) {
-      const internalFocus = discoveredLinks
-        .filter((link) => extractDomain(link) === extractDomain(rootUrl))
-        .filter((link) => DISCOVERY_LINK_KEYWORDS.some((keyword) => link.toLowerCase().includes(keyword)))
-        .slice(0, Math.max(0, perCompanyPageCap - evidenceUrls.length));
-      for (const link of internalFocus) {
-        if (evidenceUrls.includes(link)) continue;
-        try {
-          const scraped = await firecrawlScrape(link);
-          totalPagesCrawled += 1;
-          evidenceUrls.push(link);
-          if (scraped.markdown) {
-            contentChunks.push(scraped.markdown.slice(0, 6000));
-            const emails = extractEmails(scraped.markdown);
-            for (const email of emails) {
-              if (!emailSourceMap.has(email)) emailSourceMap.set(email, link);
-            }
-            const linkedin = scraped.markdown.match(LINKEDIN_COMPANY_REGEX)?.[0];
-            if (linkedin && !linkedinCompany) linkedinCompany = linkedin;
-          }
-        } catch {
-          continue;
-        }
-      }
-    }
-
     const combinedContent = contentChunks.join("\n");
     const emails = Array.from(emailSourceMap.keys()).slice(0, 12);
-    const emailCandidates = emails.map((email) => ({
-      email,
-      source_url: emailSourceMap.get(email) ?? rootUrl,
-      confidence: "pattern_derived"
-    }));
-    const contactCandidates = inferContactCandidatesFromEmails(emails).map((entry) => ({
-      ...entry,
-      source_url: emailSourceMap.get(entry.email) ?? rootUrl
-    }));
-    const domain = extractDomain(rootUrl);
-    const intentSignals = buildIntentSignals(params.icp, combinedContent);
-    const description = row.description || combinedContent.slice(0, 400);
-
+    const emailCandidates = emails.map((email) => ({ email, source_url: emailSourceMap.get(email) ?? rootUrl, confidence: "pattern_derived" }));
+    const contactCandidates = inferContactCandidatesFromEmails(emails).map((entry) => ({ ...entry, source_url: emailSourceMap.get(entry.email) ?? rootUrl }));
     companyCandidates.push({
-      company_name: inferCompanyName(row.title, domain, scrapedTitle),
+      company_name: inferCompanyName(row.title, domain, ""),
       company_website: rootUrl,
-      company_description: description,
-      company_linkedin: linkedinCompany,
+      company_description: row.description || combinedContent.slice(0, 400),
+      company_linkedin: "",
       evidence_urls: Array.from(new Set(evidenceUrls)).slice(0, 20),
-      intent_signals: intentSignals,
+      intent_signals: buildIntentSignals(params.icp, combinedContent),
       pages_crawled: evidenceUrls.length,
       email_candidates: emailCandidates,
       contact_candidates: contactCandidates
@@ -852,7 +916,7 @@ async function discoverWithFirecrawl(params: {
   }
 
   return gooseCrawlerOutputSchema.parse({
-    runtime: "firecrawl_primary",
+    runtime: "apify_primary",
     used_browser_harness: false,
     queries: cycleQueries,
     company_candidates: companyCandidates,
@@ -906,6 +970,19 @@ function buildQualityReviewInput(icp: ExtractedIcp, candidates: GooseCrawlerCand
       evidence_urls: candidate.evidence_urls.slice(0, 10),
       email_candidates: candidate.email_candidates.slice(0, 8),
       contact_candidates: candidate.contact_candidates.slice(0, 8)
+    }))
+  };
+}
+
+function buildClassificationInput(icp: ExtractedIcp, candidates: GooseCrawlerCandidate[]): Record<string, unknown> {
+  return {
+    strict_icp: icp,
+    candidates: candidates.map((candidate, index) => ({
+      candidate_id: candidateKey(candidate, index),
+      company_name: candidate.company_name,
+      company_website: candidate.company_website,
+      company_description: candidate.company_description,
+      intent_signals: candidate.intent_signals.slice(0, 10)
     }))
   };
 }
@@ -1004,6 +1081,37 @@ async function verifyEmailDeliverable(email: string): Promise<EmailVerificationR
     reason: "mx_verified_only",
     verified_at: nowIso
   };
+}
+
+async function findEmailWithAnyMailFinder(params: {
+  fullName: string;
+  companyDomain: string;
+  companyName: string;
+}): Promise<string> {
+  if (!env.LEADS_ANYMAILFINDER_ENABLED || !env.ANYMAILFINDER_API_KEY) return "";
+  if (!params.fullName || !params.companyDomain) return "";
+  try {
+    const response = await fetch("https://api.anymailfinder.com/v5.1/find-email/person", {
+      method: "POST",
+      headers: {
+        Authorization: env.ANYMAILFINDER_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        full_name: params.fullName,
+        domain: params.companyDomain,
+        company_name: params.companyName
+      })
+    });
+    if (!response.ok) return "";
+    const data = (await response.json()) as { email?: string; email_status?: string };
+    if ((data.email_status === "valid" || data.email_status === "risky") && data.email) {
+      return data.email.toLowerCase().trim();
+    }
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 async function smtpRcptCheck(host: string, recipient: string): Promise<"accepted" | "rejected" | "unknown"> {
@@ -1320,20 +1428,20 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
     const acceptedBeforeCycle = acceptedLeads.length;
 
     await input.onProgress({
-      stage: "crawler_discovery",
+      stage: "apify_discovery",
       progress: Math.min(55, 20 + stats.cycleIndex * 8),
-      message: `Cycle ${stats.cycleIndex}: running Firecrawl discovery for ${missingCount} missing leads.`,
+      message: `Cycle ${stats.cycleIndex}: running Apify discovery for ${missingCount} missing leads.`,
       metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
-        firecrawl_queries_used: stats.queries.slice(-5),
-        firecrawl_results_seen: stats.searchResultsSeen,
-        firecrawl_pages_scraped: stats.pagesCrawled,
+        apify_sources_used: ["apify/google-search-scraper", "compass/crawler-google-places"],
+        apify_dataset_items_seen: stats.searchResultsSeen,
+        apify_actor_runs: stats.crawlerRuns,
         continuation_slice_index: sliceIndex
       })
     });
 
     let crawlerOutput: GooseCrawlerOutput;
     try {
-      crawlerOutput = await discoverWithFirecrawl({
+      crawlerOutput = await discoverWithApify({
         sellerUrl: normalizedUrl,
         icp: extractedIcp,
         cycleIndex: stats.cycleIndex,
@@ -1341,21 +1449,20 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         seenDomains
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Firecrawl discovery failed.";
+      const message = error instanceof Error ? error.message : "Apify discovery failed.";
       if (error instanceof FirecrawlError && (error.retryable || error.status === 429)) {
         const retryDelayMs = Math.min(45000, 2500 * Math.max(1, stats.cycleIndex % 6));
         await input.onProgress({
-          stage: "crawler_discovery",
+          stage: "apify_discovery",
           progress: Math.min(60, 22 + stats.cycleIndex * 8),
-          message: `Cycle ${stats.cycleIndex}: Firecrawl ${error.operation ?? "request"} retry in ${Math.round(
+          message: `Cycle ${stats.cycleIndex}: Apify ${error.operation ?? "request"} retry in ${Math.round(
             retryDelayMs / 1000
           )}s.`,
           metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
-            firecrawl_error_status: error.status ?? "unknown",
-            firecrawl_error_message: message.slice(0, 220),
-            firecrawl_queries_used: stats.queries.slice(-5),
-            firecrawl_results_seen: stats.searchResultsSeen,
-            firecrawl_pages_scraped: stats.pagesCrawled
+            apify_error_status: error.status ?? "unknown",
+            apify_error_message: message.slice(0, 220),
+            apify_actor_runs: stats.crawlerRuns,
+            apify_dataset_items_seen: stats.searchResultsSeen
           })
         });
         await sleep(retryDelayMs);
@@ -1387,37 +1494,61 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
         candidates_discovered: crawlerOutput.company_candidates.length,
         candidates_deduped: dedupedCandidates.length,
         pages_crawled: stats.pagesCrawled,
-        firecrawl_queries_used: crawlerOutput.queries,
-        firecrawl_results_seen: stats.searchResultsSeen,
-        firecrawl_pages_scraped: stats.pagesCrawled
+        apify_sources_used: ["apify/google-search-scraper", "compass/crawler-google-places"],
+        apify_dataset_items_seen: stats.searchResultsSeen,
+        apify_actor_runs: stats.crawlerRuns
       })
     });
 
     if (dedupedCandidates.length === 0) {
       const noCandidateBackoffMs = Math.min(60000, 3000 + stats.cycleIndex * 500);
       await input.onProgress({
-        stage: "crawler_discovery",
+        stage: "apify_discovery",
         progress: Math.min(68, 30 + stats.cycleIndex * 8),
-        message: `Cycle ${stats.cycleIndex}: no new candidates from Firecrawl, backoff ${Math.round(
+        message: `Cycle ${stats.cycleIndex}: no new candidates from Apify, backoff ${Math.round(
           noCandidateBackoffMs / 1000
         )}s before next strict cycle.`,
         metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
           crawler_runtime: crawlerOutput.runtime,
-          firecrawl_queries_used: crawlerOutput.queries,
-          firecrawl_results_seen: stats.searchResultsSeen,
-          firecrawl_pages_scraped: stats.pagesCrawled
+          apify_actor_runs: stats.crawlerRuns,
+          apify_dataset_items_seen: stats.searchResultsSeen
         })
       });
       await sleep(noCandidateBackoffMs);
       continue;
     }
 
+    const classificationResult = await runAgent<{ classifications: Array<{ candidate_id: string; label: "fit" | "unclear" | "mismatch"; reason: string }> }>({
+      apiKey: input.llm.apiKey,
+      provider: input.llm.provider,
+      model: input.llm.model,
+      systemPrompt: CLASSIFICATION_SYSTEM_PROMPT,
+      userPrompt: JSON.stringify(buildClassificationInput(extractedIcp, dedupedCandidates)),
+      redis: null,
+      maxTokens: 3000
+    });
+    const classifications = classificationSchema.parse(classificationResult.data).classifications;
+    const classificationMap = new Map(classifications.map((entry) => [entry.candidate_id, entry]));
+    const classifiedCandidates = dedupedCandidates.filter((candidate, index) => {
+      const decision = classificationMap.get(candidateKey(candidate, index));
+      if (!decision) return false;
+      if (decision.label === "mismatch") {
+        incrementCount(rejectionByReason, "classification_mismatch");
+        stats.rejectedQuality += 1;
+        return false;
+      }
+      if (decision.label === "unclear") {
+        incrementCount(rejectionByReason, "classification_unclear");
+      }
+      return true;
+    });
+
     const qualityReview = await runAgent<{ decisions: QualityDecision[] }>({
       apiKey: input.llm.apiKey,
       provider: input.llm.provider,
       model: input.llm.model,
       systemPrompt: QUALITY_SYSTEM_PROMPT,
-      userPrompt: JSON.stringify(buildQualityReviewInput(extractedIcp, dedupedCandidates)),
+      userPrompt: JSON.stringify(buildQualityReviewInput(extractedIcp, classifiedCandidates)),
       redis: null,
       maxTokens: 4000
     });
@@ -1427,15 +1558,17 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
     await input.onProgress({
       stage: "quality_review",
       progress: Math.min(76, 36 + stats.cycleIndex * 8),
-      message: `Cycle ${stats.cycleIndex}: quality-reviewed ${dedupedCandidates.length} candidates.`,
+      message: `Cycle ${stats.cycleIndex}: quality-reviewed ${classifiedCandidates.length} candidates.`,
       metadata: buildCycleMetadata(stats.cycleIndex, acceptedLeads.length, requestedCount, {
-        review_decisions: qualityDecisions.length
+        review_decisions: qualityDecisions.length,
+        classification_reject_count: (rejectionByReason.classification_mismatch ?? 0),
+        classification_unclear_count: (rejectionByReason.classification_unclear ?? 0)
       })
     });
 
-    for (let idx = 0; idx < dedupedCandidates.length; idx += 1) {
+    for (let idx = 0; idx < classifiedCandidates.length; idx += 1) {
       if (acceptedLeads.length >= requestedCount) break;
-      const candidate = dedupedCandidates[idx];
+      const candidate = classifiedCandidates[idx];
       if (!candidate) continue;
       const key = candidateKey(candidate, idx);
       const decision = qualityMap.get(key);
@@ -1504,6 +1637,14 @@ export async function runGooseLeadsEngine(input: LeadsEngineRunInput): Promise<{
             .filter((entry) => entry.length > 0)
         )
       );
+      const anyMailFinderEmail = await findEmailWithAnyMailFinder({
+        fullName: contactName,
+        companyDomain: leadDomain,
+        companyName: candidate.company_name
+      });
+      if (anyMailFinderEmail) {
+        emailCandidates.unshift(anyMailFinderEmail);
+      }
       let selectedEmail = "";
       let verification: EmailVerificationResult | null = null;
 
