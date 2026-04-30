@@ -263,7 +263,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
           requestedModel: resolved.model
         },
         {
-          jobId: `${payload.jobId}:slice:${continuationSliceIndex}:${Date.now()}`
+          jobId: `${payload.jobId}-slice-${continuationSliceIndex}-${Date.now()}`
         }
       );
 
