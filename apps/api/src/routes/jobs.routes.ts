@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireApiKeyOrOAuth } from "../middleware/api-or-oauth-auth.middleware.js";
 import { getJob, cancelJob } from "../services/jobs.service.js";
 import { salesQueue } from "../jobs/queue.js";
+import { cancelHermesRun } from "../services/hermes-runner.service.js";
 
 export const jobsRouter = Router();
 
@@ -50,6 +51,12 @@ jobsRouter.delete("/:jobId", requireApiKeyOrOAuth("jobs:write"), async (req, res
 
     await cancelJob(jobId, req.auth.workspaceId);
     await salesQueue.remove(jobId);
+    try {
+      await cancelHermesRun(jobId);
+    } catch {
+      // Job state is already durable; a runner that has just completed or
+      // restarted does not make cancellation fail from the client's view.
+    }
     return res.json({ success: true, data: { jobId, status: "cancelled" } });
   } catch (error) {
     return next(error);

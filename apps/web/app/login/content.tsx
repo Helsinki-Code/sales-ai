@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 
 export default function LoginContent() {
   const router = useRouter();
@@ -24,21 +25,11 @@ export default function LoginContent() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
-        return;
-      }
-
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) { setError(signInError.message); setLoading(false); return; }
       router.replace(nextPath);
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
       setLoading(false);
     }
@@ -49,227 +40,121 @@ export default function LoginContent() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       setLoading(false);
       return;
     }
-
     try {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-
+      if (signUpError) { setError(signUpError.message); setLoading(false); return; }
       setSuccess("Account created! Check your email to verify, then sign in.");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
+      setEmail(""); setPassword(""); setConfirmPassword("");
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
       setLoading(false);
     }
   };
 
-  const handleOAuthSignIn = async () => {
+  const handleOAuthSignIn = () => {
     window.location.href = `/auth/start?next=${encodeURIComponent(nextPath)}`;
   };
 
   return (
-    <main className="container main-section">
-      <h1 className="page-title">{isOAuthFlow ? "Authenticate" : "Sign In"}</h1>
-      <div className="card" style={{ maxWidth: "400px" }}>
+    <div className="auth-page">
+      <div className="auth-card">
+        {/* Logo */}
+        <div className="auth-logo">
+          <Image src="/brand/brand-mark.svg" alt="Sales AI" width={28} height={28} />
+          <span style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.025em" }}>Sales AI</span>
+        </div>
+
         {isOAuthFlow ? (
           <>
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border)" }}>
+            <h1 className="auth-title">
+              {mode === "signin" ? "Welcome back" : "Create account"}
+            </h1>
+            <p className="auth-subtitle">
+              {mode === "signin"
+                ? "Sign in to access your Sales AI workspace."
+                : "Start your free 7-day trial today."}
+            </p>
+
+            {/* Tabs */}
+            <div className="auth-tabs">
               <button
+                className={`auth-tab ${mode === "signin" ? "active" : ""}`}
                 onClick={() => { setMode("signin"); setError(null); }}
-                style={{
-                  flex: 1,
-                  padding: "0.75rem",
-                  border: "none",
-                  background: mode === "signin" ? "var(--mint)" : "transparent",
-                  color: mode === "signin" ? "var(--ink)" : "var(--slate)",
-                  cursor: "pointer",
-                  fontWeight: mode === "signin" ? "600" : "400",
-                }}
+                type="button"
               >
-                Sign In
+                Sign in
               </button>
               <button
+                className={`auth-tab ${mode === "signup" ? "active" : ""}`}
                 onClick={() => { setMode("signup"); setError(null); }}
-                style={{
-                  flex: 1,
-                  padding: "0.75rem",
-                  border: "none",
-                  background: mode === "signup" ? "var(--mint)" : "transparent",
-                  color: mode === "signup" ? "var(--ink)" : "var(--slate)",
-                  cursor: "pointer",
-                  fontWeight: mode === "signup" ? "600" : "400",
-                }}
+                type="button"
               >
-                Sign Up
+                Sign up
               </button>
             </div>
 
+            {error && <div className="auth-msg auth-msg-error" role="alert">{error}</div>}
+            {success && <div className="auth-msg auth-msg-success" role="status">{success}</div>}
+
             {mode === "signin" ? (
               <form onSubmit={handlePasswordSignIn}>
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      fontSize: "1rem",
-                    }}
-                  />
+                <div className="auth-field">
+                  <label htmlFor="email-si">Email address</label>
+                  <input id="email-si" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" />
                 </div>
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      fontSize: "1rem",
-                    }}
-                  />
+                <div className="auth-field">
+                  <label htmlFor="password-si">Password</label>
+                  <input id="password-si" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
                 </div>
-                {error && (
-                  <p style={{ color: "red", marginBottom: "1rem", fontSize: "0.9rem" }}>
-                    {error}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="cta"
-                  style={{ width: "100%", cursor: loading ? "not-allowed" : "pointer" }}
-                >
-                  {loading ? "Signing in..." : "Sign In"}
+                <button type="submit" disabled={loading} className="btn btn-primary auth-submit">
+                  {loading ? "Signing in…" : "Sign in"}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleSignUp}>
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      fontSize: "1rem",
-                    }}
-                  />
+                <div className="auth-field">
+                  <label htmlFor="email-su">Email address</label>
+                  <input id="email-su" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" />
                 </div>
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      fontSize: "1rem",
-                    }}
-                  />
+                <div className="auth-field">
+                  <label htmlFor="password-su">Password</label>
+                  <input id="password-su" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Min. 8 characters" />
                 </div>
-                <div style={{ marginBottom: "1.5rem" }}>
-                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem",
-                      borderRadius: "4px",
-                      border: "1px solid var(--border)",
-                      fontSize: "1rem",
-                    }}
-                  />
+                <div className="auth-field">
+                  <label htmlFor="confirm-su">Confirm password</label>
+                  <input id="confirm-su" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="Re-enter password" />
                 </div>
-                {error && (
-                  <p style={{ color: "red", marginBottom: "1rem", fontSize: "0.9rem" }}>
-                    {error}
-                  </p>
-                )}
-                {success && (
-                  <p style={{ color: "green", marginBottom: "1rem", fontSize: "0.9rem" }}>
-                    {success}
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="cta"
-                  style={{ width: "100%", cursor: loading ? "not-allowed" : "pointer" }}
-                >
-                  {loading ? "Creating account..." : "Sign Up"}
+                <button type="submit" disabled={loading} className="btn btn-primary auth-submit">
+                  {loading ? "Creating account…" : "Create account"}
                 </button>
               </form>
             )}
           </>
         ) : (
           <>
-            <p style={{ color: "var(--slate)", marginBottom: "1.5rem", textAlign: "center" }}>
-              Sign in to access your Sales AI dashboard
-            </p>
+            <h1 className="auth-title">Welcome back</h1>
+            <p className="auth-subtitle">Sign in to access your Sales AI dashboard.</p>
             <button
               onClick={handleOAuthSignIn}
-              className="cta"
-              style={{ width: "100%", cursor: "pointer" }}
+              className="btn btn-primary auth-submit"
+              style={{ width: "100%" }}
             >
               Sign in with Sales AI
             </button>
-            <p style={{ marginTop: "1rem", fontSize: "0.85rem", color: "var(--slate)", textAlign: "center" }}>
-              You'll be securely authenticated through Supabase
-            </p>
+            <p className="auth-hint">Securely authenticated through Supabase.</p>
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }

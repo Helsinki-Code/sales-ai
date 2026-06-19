@@ -42,6 +42,7 @@ npm run dev:web
 
 See:
 - `docs/DEPLOYMENT.md`
+- `docs/HERMES_AGENT_RUNTIME.md`
 - `docs/SUPABASE_AUTH_SETUP.md`
 - `docs/SUPABASE_OAUTH_SETUP.md`
 - `render.yaml`

@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: sales-ai-hermes-runner
+Version: 0.1.0
+Summary: Restricted internal Hermes runtime for Sales AI jobs
+Requires-Python: <3.14,>=3.11
+License-File: NOTICE.md
+Requires-Dist: fastapi==0.133.1
+Requires-Dist: uvicorn[standard]==0.41.0
+Requires-Dist: pydantic==2.13.4
+Requires-Dist: hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git@3485bc72251993ff7fb4d31bb03a64e836901415
+Dynamic: license-file

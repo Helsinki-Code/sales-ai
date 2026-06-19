@@ -1,4 +1,4 @@
-﻿import "./globals.css";
+import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,12 +7,20 @@ export const metadata: Metadata = {
     template: "%s | Sales AI",
   },
   description:
-    "Developer-first sales AI platform with 15 production endpoints, BYOK security, and async job infrastructure.",
+    "Developer-first sales AI platform. 15 production endpoints, BYOK security, async job infrastructure.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

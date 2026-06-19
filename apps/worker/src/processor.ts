@@ -1,4 +1,5 @@
-import { decryptText, executeSkill, llmProviders, normalizeLeadFinderRequest, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
+import { decryptText, executeSkill, leadFinderResultV3Schema, llmProviders, normalizeLeadFinderRequest, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
+import { randomUUID } from "node:crypto";
 import { Queue, type Job, type ConnectionOptions } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
@@ -8,6 +9,8 @@ import { LeadsEngineError as GooseLeadsEngineError, runGooseLeadsEngine } from "
 import { selectLeadFinderEngine } from "./leads/lead-finder-engine.js";
 import { persistLeadFinderRun } from "./leads/persist-leads.js";
 import { consumeUnitsForJob, reverseUnitsForJob } from "./unit-billing.js";
+import { completeAgentRun, failAgentRun, recordAgentEvent, startAgentRun } from "./agent-runs.js";
+import { runHermes } from "./hermes-runner.js";
 
 export type SalesJobPayload = {
   jobId: string;
@@ -36,6 +39,12 @@ const salesQueue = new Queue<SalesJobPayload>(queueName, {
     }
   }
 });
+
+function shouldUseHermes(endpoint: SalesEndpoint): boolean {
+  if (env.AGENT_ENGINE !== "hermes") return false;
+  const configured = env.HERMES_ENDPOINTS.split(",").map((value) => value.trim()).filter(Boolean);
+  return configured.includes("*") || configured.includes(endpoint);
+}
 
 async function getWorkspaceApiKey(workspaceId: string, provider: LlmProvider): Promise<string> {
   const { data, error } = await supabaseAdmin
@@ -173,7 +182,110 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     leadUnits: 0
   };
 
-  if (payload.endpoint === "leads" && (env.LEADS_ENGINE_MODE === "managed_v3" || env.LEADS_ENGINE_MODE === "mock")) {
+  if (shouldUseHermes(payload.endpoint)) {
+    const resolved = await resolveModelPolicy(
+      payload.workspaceId,
+      payload.endpoint,
+      payload.requestedProvider,
+      payload.requestedModel
+    );
+    provider = resolved.provider;
+    model = resolved.model;
+    const providerApiKey = await getWorkspaceApiKey(payload.workspaceId, provider);
+    const requestedAgentRunId = randomUUID();
+    const agentRunId = await startAgentRun({
+      id: requestedAgentRunId,
+      jobId: payload.jobId,
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      endpoint: payload.endpoint,
+      provider,
+      model,
+      payload: payload.input
+    });
+    await updateRunningState("agent_started", 12, "Hermes sales team started.", {
+      engine: "hermes",
+      agent_run_id: agentRunId
+    });
+
+    try {
+      const runnerResult = await runHermes({
+        runnerUrl: env.HERMES_RUNNER_URL!,
+        runnerToken: env.HERMES_RUNNER_TOKEN!,
+        // The runner id intentionally equals the durable job id so API
+        // cancellation can interrupt an in-flight ephemeral runner without
+        // exposing the internal agent_runs primary key.
+        runId: payload.jobId,
+        jobId: payload.jobId,
+        orgId: payload.orgId,
+        workspaceId: payload.workspaceId,
+        endpoint: payload.endpoint,
+        input: payload.input,
+        provider,
+        model,
+        providerApiKey,
+        maxIterations: env.HERMES_MAX_ITERATIONS,
+        maxTokens: env.HERMES_MAX_TOKENS,
+        onEvent: async (event) => {
+          await updateRunningState(event.stage, event.progress, event.message, {
+            engine: "hermes",
+            agent_run_id: agentRunId,
+            event_type: event.type,
+            ...(event.metadata ?? {})
+          });
+          await recordAgentEvent({
+            runId: agentRunId,
+            type: event.type,
+            status: event.stage === "tool_completed" ? "complete" : "started",
+            metadata: event.metadata
+          });
+        }
+      });
+      resultData = runnerResult.data;
+      if (payload.endpoint === "leads") {
+        if (!Array.isArray(resultData)) {
+          throw new Error("Hermes Lead Finder returned a non-array result.");
+        }
+        const leads = resultData.map((lead) => leadFinderResultV3Schema.parse(lead));
+        const request = normalizeLeadFinderRequest(payload.input);
+        await persistLeadFinderRun({
+          supabase: supabaseAdmin,
+          jobId: payload.jobId,
+          orgId: payload.orgId,
+          workspaceId: payload.workspaceId,
+          request,
+          leads,
+          stats: {
+            discoveredCompanies: leads.length,
+            reviewedCompanies: leads.length,
+            acceptedLeads: leads.length,
+            estimatedCostUsd: 0
+          }
+        });
+        resultData = leads;
+      }
+      durationMs = runnerResult.duration_ms || Date.now() - startedAt;
+      model = `${provider}:${runnerResult.model}`;
+      tokens = {
+        inputTokens: runnerResult.token_usage?.input_tokens ?? runnerResult.token_usage?.inputTokens ?? 0,
+        outputTokens: runnerResult.token_usage?.output_tokens ?? runnerResult.token_usage?.outputTokens ?? 0,
+        cacheCreationInputTokens: runnerResult.token_usage?.cache_creation_input_tokens ?? 0,
+        cacheReadInputTokens: runnerResult.token_usage?.cache_read_input_tokens ?? 0
+      };
+      await completeAgentRun({
+        runId: agentRunId,
+        jobId: payload.jobId,
+        orgId: payload.orgId,
+        workspaceId: payload.workspaceId,
+        data: resultData,
+        tokenUsage: runnerResult.token_usage ?? {},
+        toolCallCount: runnerResult.tool_call_count ?? 0
+      });
+    } catch (error) {
+      await failAgentRun(agentRunId, error instanceof Error ? error.message : "Hermes runner failed.");
+      throw error;
+    }
+  } else if (payload.endpoint === "leads" && (env.LEADS_ENGINE_MODE === "managed_v3" || env.LEADS_ENGINE_MODE === "mock")) {
     const resolved = await resolveModelPolicy(
       payload.workspaceId,
       payload.endpoint,
@@ -463,6 +575,11 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
 
 export async function handleSalesJobFailure(job: Job<SalesJobPayload> | undefined, error: Error): Promise<void> {
   if (!job) return;
+  const { data: currentJob } = await supabaseAdmin.from("jobs").select("status").eq("id", job.data.jobId).maybeSingle();
+  if (currentJob?.status === "cancelled") {
+    await pushEvent(job.data.jobId, job.data.workspaceId, "cancelled", 100, "Job cancelled by user.");
+    return;
+  }
   const maybeCode = (error as Error & { code?: unknown }).code;
   const errorCode =
     error instanceof ParallelLeadsEngineError || error instanceof GooseLeadsEngineError

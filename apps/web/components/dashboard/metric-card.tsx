@@ -1,1 +1,27 @@
-export function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) { return <div className="ui-card"><p className="muted small">{label}</p><div className="kpi">{value}</div>{hint ? <p className="muted small">{hint}</p> : null}</div>; }
+export function MetricCard({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: "success" | "warning" | "danger";
+}) {
+  const accentColor =
+    accent === "success" ? "var(--success)" :
+    accent === "warning" ? "var(--warning)" :
+    accent === "danger"  ? "var(--danger)"  : undefined;
+
+  return (
+    <div
+      className="metric-card"
+      style={accentColor ? { borderTopColor: accentColor, borderTopWidth: "2px" } : undefined}
+    >
+      <span className="metric-label">{label}</span>
+      <span className="metric-value">{value}</span>
+      {hint && <span className="metric-hint">{hint}</span>}
+    </div>
+  );
+}

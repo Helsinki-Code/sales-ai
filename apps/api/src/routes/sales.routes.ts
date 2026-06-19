@@ -10,6 +10,7 @@ import { resolveModelForEndpoint } from "../services/model-policy.service.js";
 import { createJobRecord, findJobByIdempotency } from "../services/jobs.service.js";
 import { salesQueue } from "../jobs/queue.js";
 import { recordUsageEvent } from "../services/usage.service.js";
+import { runHermesSalesSkill, shouldUseHermes } from "../services/hermes-runner.service.js";
 import {
   BillingNotConfiguredError,
   InsufficientUnitsError,
@@ -141,14 +142,25 @@ salesRouter.post("/:endpoint", requireApiKeyOrOAuth("sales:run"), apiRateLimitMi
     await ensureUnitsAvailableForRequest(req.auth.orgId, endpoint, parsedBody);
 
     const providerApiKey = await getProviderApiKey(req.auth.workspaceId, resolvedPolicy.provider);
-    const result = await executeSkill({
-      endpoint,
-      userInput: parsedBody,
-      apiKey: providerApiKey,
-      provider: resolvedPolicy.provider,
-      model: resolvedPolicy.model,
-      redis
-    });
+    const result = shouldUseHermes(endpoint)
+      ? await runHermesSalesSkill({
+          runId: req.requestId,
+          orgId: req.auth.orgId,
+          workspaceId: req.auth.workspaceId,
+          endpoint,
+          payload: parsedBody,
+          provider: resolvedPolicy.provider,
+          model: resolvedPolicy.model,
+          providerApiKey
+        })
+      : await executeSkill({
+          endpoint,
+          userInput: parsedBody,
+          apiKey: providerApiKey,
+          provider: resolvedPolicy.provider,
+          model: resolvedPolicy.model,
+          redis
+        });
 
     const consumed = await consumeUnitsForCompletion({
       orgId: req.auth.orgId,

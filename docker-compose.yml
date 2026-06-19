@@ -7,5 +7,15 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
+  hermes-runner:
+    build:
+      context: .
+      dockerfile: apps/hermes-runner/Dockerfile
+    environment:
+      HERMES_RUNNER_TOKEN: ${HERMES_RUNNER_TOKEN:?set_HERMES_RUNNER_TOKEN}
+      # Configure Hermes's read-only web provider in the runner deployment.
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    ports:
+      - "8081:8080"
 volumes:
   redis_data:

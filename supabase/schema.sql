@@ -240,6 +240,8 @@ create table if not exists public.workspace_model_policies (
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   endpoint text not null,
+  default_provider public.provider_type not null default 'anthropic',
+  allowed_providers public.provider_type[] not null default array['anthropic']::public.provider_type[],
   default_model text not null,
   allowed_models text[] not null,
   updated_by uuid references auth.users(id),

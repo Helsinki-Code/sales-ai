@@ -2,153 +2,169 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-const featureCards = [
+const features = [
   {
-    title: "Your LLM costs stay yours",
-    body: "Use your own Anthropic API key. Every token you spend hits your account directly. No shared keys, no hidden per-call fees, and no vendor lock-in.",
+    title: "Your Anthropic key. Your bill.",
+    body: "Every token hits your Anthropic account. No shared keys, no per-call margin, no vendor lock-in. Transparent cost separation from day one.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="20" height="14" x="2" y="5" rx="2" />
+        <line x1="2" x2="22" y1="10" y2="10" />
+      </svg>
+    ),
   },
   {
-    title: "Production code in your language",
-    body: "Copy verified snippets in cURL, Python, TypeScript, JavaScript, Go, PHP, or Ruby. Real working calls to live endpoints, ready to paste.",
+    title: "Production code in 7 languages.",
+    body: "Copy verified snippets in cURL, Python, TypeScript, JavaScript, Go, PHP, or Ruby. Real working calls to live endpoints, ready to paste into your stack.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    ),
   },
   {
-    title: "Long jobs do not fail",
-    body: "Prospect and lead discovery run in an async queue. Poll for results or use webhooks. No serverless timeout failures in your pipeline.",
+    title: "Long jobs do not timeout.",
+    body: "Prospect and lead discovery run in an async queue. Receive a job_id, poll for results, or configure webhooks. No serverless timeouts in your pipeline.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
   },
 ];
 
-const endpointCards = [
-  ["/sales/research", "Deep prospect research before a call"],
-  ["/sales/qualify", "Lead scoring and qualification"],
-  ["/sales/outreach", "Personalized outreach copy"],
-  ["/sales/followup", "Multi-step follow-up sequences"],
-  ["/sales/prep", "Pre-call meeting prep and briefing"],
-  ["/sales/proposal", "Proposal generation from context"],
+const endpointRows = [
+  ["/sales/research",   "Deep prospect research before a call"],
+  ["/sales/qualify",    "Lead scoring and qualification"],
+  ["/sales/outreach",   "Personalized outreach copy"],
+  ["/sales/followup",   "Multi-step follow-up sequences"],
+  ["/sales/prep",       "Pre-call briefing and talk track"],
+  ["/sales/proposal",   "Proposal generation from context"],
   ["/sales/objections", "Deal-specific objection handling"],
-  ["/sales/icp", "ICP fit scoring and gap analysis"],
-  ["/sales/competitors", "Competitive intelligence on demand"],
-  ["/sales/contacts", "Contact enrichment and profiling"],
-  ["/sales/prospect", "Async prospect discovery"],
-  ["/sales/leads", "Async lead discovery"],
-  ["/sales/report", "Sales performance reporting"],
+  ["/sales/icp",        "ICP fit scoring and gap analysis"],
+  ["/sales/competitors","Competitive intelligence on demand"],
+  ["/sales/contacts",   "Contact enrichment and profiling"],
+  ["/sales/prospect",   "Async prospect discovery"],
+  ["/sales/leads",      "Async lead discovery"],
+  ["/sales/report",     "Sales performance reporting"],
   ["/sales/report-pdf", "PDF export"],
-  ["/sales/quick", "Fast sales queries without queue"],
+  ["/sales/quick",      "Fast sales queries without queue"],
 ] as const;
 
-const objections = [
-  {
-    q: "Why not call Anthropic directly?",
-    a: "You can, but you still have to build 15 sales-specific prompt layers, output schemas, async jobs, retries, and failure handling. Sales AI ships that foundation from day one.",
-  },
-  {
-    q: "Who controls Anthropic costs?",
-    a: "You do. Your key is billed directly by Anthropic. We charge platform access only and do not mark up your token usage.",
-  },
-  {
-    q: "What if my language is not listed?",
-    a: "If your stack can make HTTP requests, it can call Sales AI. We provide snippets for cURL, Python, TypeScript, JavaScript, Go, PHP, and Ruby.",
-  },
-  {
-    q: "Is this for startups or enterprise teams?",
-    a: "Both. Starter is ideal for builders. Growth supports multi-workspace teams. Enterprise adds SSO/SAML and compliance controls.",
-  },
+const stats = [
+  { value: "15",         label: "Sales endpoints" },
+  { value: "7",          label: "Languages" },
+  { value: "Async",      label: "Job queue with polling" },
+  { value: "AES-256",    label: "Key encryption at rest" },
 ];
 
 export const metadata: Metadata = {
-  title: "We Built a Sales AI API With 15 Endpoints - Here Is What Every One Does",
+  title: "Sales AI — 15 Endpoints. Your Key. Your Costs.",
   description:
-    "REST endpoints for qualifying leads, writing outreach, researching prospects, and more. BYOK with no vendor markup. Build in minutes.",
+    "Production-ready sales API with 15 endpoints for qualifying leads, writing outreach, researching prospects. BYOK — your Anthropic key, no vendor markup.",
 };
 
 export default function HomePage() {
   return (
     <main>
-      <section className="container hero hero-with-visual">
-        <div>
-          <p className="eyebrow">Sales AI Platform</p>
-          <h1>15 Sales AI Endpoints. Your Key. Your Costs.</h1>
-          <p>
-            15 production-ready sales endpoints. Call from cURL, Python, TypeScript,
-            JavaScript, Go, PHP, or Ruby. Full BYOK. Your Anthropic key hits your account,
-            not ours.
-          </p>
-          <div className="inline-actions">
-            <Link className="cta" href="/login">
-              Connect Your Key
-            </Link>
-            <Link className="text-link" href="/docs">
-              Browse the Docs -&gt;
-            </Link>
+      {/* ── HERO ─────────────────────────────────────── */}
+      <section className="container" style={{ padding: "6rem 0 3.5rem" }}>
+        <div className="hero-grid">
+          <div className="animate-in">
+            <p className="hero-eyebrow">
+              <span className="hero-eyebrow-dot" />
+              Sales AI Platform
+            </p>
+            <h1 className="hero-headline">15 Sales AI Endpoints. Your Key. Your Costs.</h1>
+            <p className="hero-body">
+              15 production-ready sales endpoints callable from cURL, Python, TypeScript, JavaScript,
+              Go, PHP, or Ruby. Full BYOK — your Anthropic key hits your account, not ours.
+            </p>
+            <div className="hero-actions">
+              <Link href="/login" className="btn btn-primary">
+                Connect Your Key
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </Link>
+              <Link href="/docs" className="btn btn-ghost" style={{ color: "var(--text-muted)" }}>
+                Browse the docs
+              </Link>
+            </div>
+            <p style={{ marginTop: "1.25rem", fontSize: "0.78rem", color: "var(--text-faint)" }}>
+              Built on Vercel · Supabase · Anthropic · Stripe
+            </p>
           </div>
-          <p className="muted small" style={{ marginTop: "0.9rem" }}>
-            Built on Render, Vercel, and Supabase
-          </p>
-        </div>
 
-        <figure className="visual-panel">
-          <Image
-            src="/brand/hero-platform.svg"
-            alt="Minimal architectural illustration showing Sales AI endpoint workflow and structured output pipeline"
-            width={900}
-            height={620}
-            priority
-          />
-        </figure>
-      </section>
-
-      <section className="container main-section">
-        <pre className="code-block">
-{`# Qualify a lead in one API call
-import requests
+          {/* Terminal demo */}
+          <div className="animate-in animate-in-delay-2">
+            <div className="terminal-window">
+              <div className="terminal-header">
+                <span className="terminal-dot red" />
+                <span className="terminal-dot yellow" />
+                <span className="terminal-dot green" />
+                <span className="terminal-tab">qualify.py</span>
+              </div>
+              <pre className="terminal-body">
+                <code>{`import requests
 
 r = requests.post(
-  "https://api.sales-ai.app/api/v1/sales/qualify",
-  headers={"Authorization": "Bearer YOUR_APP_KEY"},
-  json={"lead": "Acme Corp, 500 employees, Series B, uses Salesforce"}
+  `}<span className="t-string">"https://api.sales-ai.app/api/v1/sales/qualify"</span>{`,
+  headers={`}<span className="t-string">"Authorization"</span>{`: `}<span className="t-string">"Bearer YOUR_KEY"</span>{`},
+  json={`}<span className="t-string">"lead"</span>{`: `}<span className="t-string">"Acme Corp, 500 employees, Series B"</span>{`}
 )
+`}<span className="t-comment"># Structured JSON response</span>{`
 print(r.json())
-# -> { score: 87, tier: "A", reasoning: "...", next_action: "..." }`}
-        </pre>
-        <p className="muted small">Every endpoint returns structured JSON for CRM, automation, and workflow use.</p>
+`}{`→ `}<span className="t-success">{"{"}</span>{` `}<span className="t-prop">"score"</span>{`: `}<span className="t-number">87</span>{`, `}<span className="t-prop">"tier"</span>{`: `}<span className="t-string">"A"</span>{`,
+  `}<span className="t-prop">"reasoning"</span>{`: `}<span className="t-string">"Series B signals..."</span>{`,
+  `}<span className="t-prop">"next_action"</span>{`: `}<span className="t-string">"Book intro call"</span>{` `}<span className="t-success">{"}"}</span></code>
+              </pre>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="container main-section">
-        <div className="grid grid-3">
-          {featureCards.map((card) => (
-            <article key={card.title} className="card">
-              <h3>{card.title}</h3>
-              <p className="muted">{card.body}</p>
+      {/* ── FEATURES ─────────────────────────────────── */}
+      <section className="container" style={{ paddingBottom: "4rem" }}>
+        <div className="grid-3">
+          {features.map((f, i) => (
+            <article
+              key={f.title}
+              className={`feature-card animate-in animate-in-delay-${i + 1}`}
+            >
+              <div className="feature-card-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
             </article>
           ))}
         </div>
+      </section>
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="kpi">15</div>
-            <div className="muted">Production endpoints</div>
-          </div>
-          <div className="stat-card">
-            <div className="kpi">7</div>
-            <div className="muted">Languages supported</div>
-          </div>
-          <div className="stat-card">
-            <div className="kpi">Async</div>
-            <div className="muted">Background job queue with polling</div>
-          </div>
-          <div className="stat-card">
-            <div className="kpi">AES-256-GCM</div>
-            <div className="muted">Key encryption at rest</div>
-          </div>
+      {/* ── STATS ────────────────────────────────────── */}
+      <section className="container" style={{ paddingBottom: "4rem" }}>
+        <div className="grid-4">
+          {stats.map((s) => (
+            <div key={s.label} className="stat-card">
+              <div className="kpi">{s.value}</div>
+              <div className="kpi-label">{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="container main-section">
-        <h2 className="section-title">15 Sales Skills. All Callable in Minutes.</h2>
-        <p className="muted">
-          Every endpoint is purpose-built for one job. Structured inputs, structured outputs,
-          and fast implementation in your existing stack.
-        </p>
-
+      {/* ── ENDPOINTS TABLE ───────────────────────────── */}
+      <section className="container" style={{ paddingBottom: "4rem" }}>
+        <div className="section-header-row">
+          <p className="section-eyebrow">API Surface</p>
+          <h2 className="section-title">15 sales skills. All callable in minutes.</h2>
+          <p className="section-body" style={{ marginTop: "0.5rem" }}>
+            Every endpoint is purpose-built for one job — structured inputs, structured JSON output,
+            fast implementation in your existing stack.
+          </p>
+        </div>
         <table className="doc-table" aria-label="Sales endpoint catalog">
           <thead>
             <tr>
@@ -157,80 +173,42 @@ print(r.json())
             </tr>
           </thead>
           <tbody>
-            {endpointCards.map(([endpoint, summary]) => (
+            {endpointRows.map(([endpoint, summary]) => (
               <tr key={endpoint}>
-                <td>
-                  <code>{endpoint}</code>
-                </td>
+                <td><code>{endpoint}</code></td>
                 <td>{summary}</td>
               </tr>
             ))}
           </tbody>
         </table>
-
         <div className="inline-actions">
-          <Link className="text-link" href="/docs/api-reference">
-            See full request and response schemas -&gt;
+          <Link href="/docs/api-reference" className="text-link">
+            See full request and response schemas →
           </Link>
         </div>
       </section>
 
-      <section className="container main-section">
-        <h2 className="section-title">Security built for the way you work</h2>
-        <div className="grid grid-3">
-          <article className="card">
-            <h3>Encrypted at rest</h3>
-            <p className="muted">Your Anthropic key is encrypted before storage with AES-256-GCM.</p>
-          </article>
-          <article className="card">
-            <h3>Tenant isolation</h3>
-            <p className="muted">Workspace data is isolated by row-level security policies.</p>
-          </article>
-          <article className="card">
-            <h3>Operational hardening</h3>
-            <p className="muted">Scoped API keys, request IDs, retries, DLQ support, and rate limits.</p>
-          </article>
-        </div>
-        <div className="inline-actions">
-          <Link className="text-link" href="/security">
-            Full security details -&gt;
-          </Link>
-        </div>
-      </section>
-
-      <section className="container main-section">
-        <h2 className="section-title">Questions developers actually ask</h2>
-        <div className="grid">
-          {objections.map((item) => (
-            <article key={item.q} className="card">
-              <h3>{item.q}</h3>
-              <p className="muted">{item.a}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="container main-section">
-        <article className="card">
-          <h2 className="section-title">Start in the time it takes to read the docs</h2>
-          <p className="muted">
-            Sign up, connect your Anthropic key, and make your first <code>/sales/qualify</code>
-            call. No long onboarding, no setup calls, no vendor markup.
+      {/* ── CTA ──────────────────────────────────────── */}
+      <section className="container" style={{ paddingBottom: "5rem" }}>
+        <div className="cta-section">
+          <p className="section-eyebrow" style={{ marginBottom: "0.75rem" }}>Get started</p>
+          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.25rem)", fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text-primary)", marginBottom: "0.75rem" }}>
+            Start in the time it takes to read the docs.
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "1rem", maxWidth: "44ch", margin: "0 auto 2rem" }}>
+            Sign up, connect your Anthropic key, and make your first <code>/sales/qualify</code> call.
+            No long onboarding, no setup calls.
           </p>
-          <div className="inline-actions">
-            <Link className="cta" href="/login">
+          <div style={{ display: "flex", gap: "0.875rem", justifyContent: "center", flexWrap: "wrap" }}>
+            <Link href="/login" className="btn btn-primary">
               Connect Your Key
             </Link>
-            <Link className="text-link" href="/docs/quickstart">
-              Read the quickstart -&gt;
+            <Link href="/docs/quickstart" className="btn btn-secondary">
+              Read the quickstart
             </Link>
           </div>
-          <p className="muted small" style={{ marginTop: "0.9rem" }}>
-            Your Anthropic key stays encrypted. You control what you spend.
-          </p>
-        </article>
+        </div>
       </section>
     </main>
   );
 }
-

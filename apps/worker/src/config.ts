@@ -10,6 +10,12 @@ const schema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     INTERNAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
     WORKER_CONCURRENCY: z.coerce.number().default(4),
+    AGENT_ENGINE: z.enum(["legacy", "hermes"]).default("legacy"),
+    HERMES_RUNNER_URL: z.string().url().optional(),
+    HERMES_RUNNER_TOKEN: z.string().min(32).optional(),
+    HERMES_ENDPOINTS: z.string().default("*"),
+    HERMES_MAX_ITERATIONS: z.coerce.number().int().min(1).max(36).default(18),
+    HERMES_MAX_TOKENS: z.coerce.number().int().min(256).max(16384).default(8192),
     LEADS_ENGINE_MODE: z.enum(["legacy", "parallel_v1", "goose_v1", "managed_v3", "mock"]).default("managed_v3"),
     PARALLEL_API_KEY: z.string().optional(),
     PARALLEL_BASE_URL: z.string().url().default("https://api.parallel.ai"),
@@ -36,6 +42,13 @@ const schema = z
     ANYMAILFINDER_API_KEY: z.string().optional()
   })
   .superRefine((value, ctx) => {
+    if (value.AGENT_ENGINE === "hermes" && (!value.HERMES_RUNNER_URL || !value.HERMES_RUNNER_TOKEN)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "HERMES_RUNNER_URL and HERMES_RUNNER_TOKEN are required when AGENT_ENGINE=hermes",
+        path: ["AGENT_ENGINE"]
+      });
+    }
     if (value.LEADS_ENGINE_MODE === "goose_v1" && (!value.APIFY_TOKEN || value.APIFY_TOKEN.trim().length === 0)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

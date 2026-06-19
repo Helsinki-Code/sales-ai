@@ -1,0 +1,11 @@
+NOTICE.md
+pyproject.toml
+src/__init__.py
+src/app.py
+src/contracts.py
+src/workflows.py
+src/sales_ai_hermes_runner.egg-info/PKG-INFO
+src/sales_ai_hermes_runner.egg-info/SOURCES.txt
+src/sales_ai_hermes_runner.egg-info/dependency_links.txt
+src/sales_ai_hermes_runner.egg-info/requires.txt
+src/sales_ai_hermes_runner.egg-info/top_level.txt

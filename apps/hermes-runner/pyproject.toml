@@ -1,0 +1,14 @@
+[project]
+name = "sales-ai-hermes-runner"
+version = "0.1.0"
+description = "Restricted internal Hermes runtime for Sales AI jobs"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi==0.133.1",
+  "uvicorn[standard]==0.41.0",
+  "pydantic==2.13.4",
+  "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git@3485bc72251993ff7fb4d31bb03a64e836901415",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

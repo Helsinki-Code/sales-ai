@@ -12,7 +12,21 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   APP_API_KEY_PREFIX: z.string().default("sak_"),
   INTERNAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
-  DEFAULT_RATE_LIMIT_PER_MIN: z.coerce.number().default(120)
+  DEFAULT_RATE_LIMIT_PER_MIN: z.coerce.number().default(120),
+  AGENT_ENGINE: z.enum(["legacy", "hermes"]).default("legacy"),
+  HERMES_RUNNER_URL: z.string().url().optional(),
+  HERMES_RUNNER_TOKEN: z.string().min(32).optional(),
+  HERMES_ENDPOINTS: z.string().default("*"),
+  HERMES_MAX_ITERATIONS: z.coerce.number().int().min(1).max(36).default(18),
+  HERMES_MAX_TOKENS: z.coerce.number().int().min(256).max(16384).default(8192)
+}).superRefine((value, ctx) => {
+  if (value.AGENT_ENGINE === "hermes" && (!value.HERMES_RUNNER_URL || !value.HERMES_RUNNER_TOKEN)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "HERMES_RUNNER_URL and HERMES_RUNNER_TOKEN are required when AGENT_ENGINE=hermes",
+      path: ["AGENT_ENGINE"]
+    });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;
