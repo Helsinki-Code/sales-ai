@@ -6,26 +6,56 @@ begin;
 create extension if not exists pgcrypto;
 
 -- Enums
-create type public.app_role as enum ('owner', 'admin', 'member');
-create type public.member_status as enum ('active', 'invited', 'suspended');
-create type public.api_key_status as enum ('active', 'revoked', 'expired');
-create type public.job_status as enum ('queued', 'running', 'complete', 'failed', 'cancelled');
-create type public.provider_type as enum ('anthropic');
-create type public.environment_type as enum ('local', 'staging', 'production');
-create type public.credential_status as enum ('active', 'inactive', 'revoked');
-create type public.webhook_status as enum ('active', 'paused');
-create type public.usage_status as enum ('success', 'failed');
-create type public.billing_status as enum (
-  'not_started',
-  'trialing',
-  'active',
-  'past_due',
-  'canceled',
-  'unpaid',
-  'incomplete',
-  'incomplete_expired',
-  'paused'
-);
+do $$ begin
+  create type public.app_role as enum ('owner', 'admin', 'member');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.member_status as enum ('active', 'invited', 'suspended');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.api_key_status as enum ('active', 'revoked', 'expired');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.job_status as enum ('queued', 'running', 'complete', 'failed', 'cancelled');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.provider_type as enum ('anthropic');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.environment_type as enum ('local', 'staging', 'production');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.credential_status as enum ('active', 'inactive', 'revoked');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.webhook_status as enum ('active', 'paused');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.usage_status as enum ('success', 'failed');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create type public.billing_status as enum (
+    'not_started',
+    'trialing',
+    'active',
+    'past_due',
+    'canceled',
+    'unpaid',
+    'incomplete',
+    'incomplete_expired',
+    'paused'
+  );
+exception when duplicate_object then null;
+end $$;
 
 -- Utility functions
 create or replace function public.set_updated_at()
@@ -51,7 +81,7 @@ end;
 $$;
 
 -- Core tenancy tables
-create table public.orgs (
+create table if not exists public.orgs (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text unique not null,
@@ -61,11 +91,12 @@ create table public.orgs (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_orgs_updated_at on public.orgs;
 create trigger trg_orgs_updated_at
 before update on public.orgs
 for each row execute function public.set_updated_at();
 
-create table public.org_members (
+create table if not exists public.org_members (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -78,11 +109,12 @@ create table public.org_members (
   unique (org_id, user_id)
 );
 
+drop trigger if exists trg_org_members_updated_at on public.org_members;
 create trigger trg_org_members_updated_at
 before update on public.org_members
 for each row execute function public.set_updated_at();
 
-create table public.workspaces (
+create table if not exists public.workspaces (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   name text not null,
@@ -94,11 +126,12 @@ create table public.workspaces (
   unique (org_id, slug)
 );
 
+drop trigger if exists trg_workspaces_updated_at on public.workspaces;
 create trigger trg_workspaces_updated_at
 before update on public.workspaces
 for each row execute function public.set_updated_at();
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   avatar_url text,
@@ -107,6 +140,7 @@ create table public.profiles (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_profiles_updated_at on public.profiles;
 create trigger trg_profiles_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
@@ -125,6 +159,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_auth_user();
@@ -181,7 +216,7 @@ as $$
 $$;
 
 -- BYOK credentials and model policies
-create table public.provider_credentials (
+create table if not exists public.provider_credentials (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -195,11 +230,12 @@ create table public.provider_credentials (
   unique (workspace_id, provider)
 );
 
+drop trigger if exists trg_provider_credentials_updated_at on public.provider_credentials;
 create trigger trg_provider_credentials_updated_at
 before update on public.provider_credentials
 for each row execute function public.set_updated_at();
 
-create table public.workspace_model_policies (
+create table if not exists public.workspace_model_policies (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -212,12 +248,13 @@ create table public.workspace_model_policies (
   unique (workspace_id, endpoint)
 );
 
+drop trigger if exists trg_workspace_model_policies_updated_at on public.workspace_model_policies;
 create trigger trg_workspace_model_policies_updated_at
 before update on public.workspace_model_policies
 for each row execute function public.set_updated_at();
 
 -- API key system
-create table public.api_keys (
+create table if not exists public.api_keys (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -232,11 +269,12 @@ create table public.api_keys (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_api_keys_updated_at on public.api_keys;
 create trigger trg_api_keys_updated_at
 before update on public.api_keys
 for each row execute function public.set_updated_at();
 
-create table public.api_key_scopes (
+create table if not exists public.api_key_scopes (
   id uuid primary key default gen_random_uuid(),
   api_key_id uuid not null references public.api_keys(id) on delete cascade,
   scope text not null,
@@ -245,7 +283,7 @@ create table public.api_key_scopes (
 );
 
 -- Jobs and artifacts
-create table public.jobs (
+create table if not exists public.jobs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -266,11 +304,12 @@ create table public.jobs (
   unique (workspace_id, endpoint, idempotency_key)
 );
 
+drop trigger if exists trg_jobs_updated_at on public.jobs;
 create trigger trg_jobs_updated_at
 before update on public.jobs
 for each row execute function public.set_updated_at();
 
-create table public.job_events (
+create table if not exists public.job_events (
   id bigserial primary key,
   job_id uuid not null references public.jobs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -281,7 +320,7 @@ create table public.job_events (
   created_at timestamptz not null default now()
 );
 
-create table public.artifacts (
+create table if not exists public.artifacts (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -296,7 +335,7 @@ create table public.artifacts (
 );
 
 -- Usage and rollups
-create table public.usage_events (
+create table if not exists public.usage_events (
   id bigserial primary key,
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -317,7 +356,7 @@ create table public.usage_events (
   created_at timestamptz not null default now()
 );
 
-create table public.usage_daily_rollups (
+create table if not exists public.usage_daily_rollups (
   id bigserial primary key,
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -335,6 +374,7 @@ create table public.usage_daily_rollups (
   unique (workspace_id, usage_date, endpoint, model)
 );
 
+drop trigger if exists trg_usage_daily_rollups_updated_at on public.usage_daily_rollups;
 create trigger trg_usage_daily_rollups_updated_at
 before update on public.usage_daily_rollups
 for each row execute function public.set_updated_at();
@@ -384,12 +424,13 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_usage_events_rollup on public.usage_events;
 create trigger trg_usage_events_rollup
 after insert on public.usage_events
 for each row execute function public.rollup_usage_daily();
 
 -- Audit and webhooks
-create table public.audit_logs (
+create table if not exists public.audit_logs (
   id bigserial primary key,
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid references public.workspaces(id) on delete set null,
@@ -402,7 +443,7 @@ create table public.audit_logs (
   created_at timestamptz not null default now()
 );
 
-create table public.webhook_endpoints (
+create table if not exists public.webhook_endpoints (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -416,12 +457,13 @@ create table public.webhook_endpoints (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_webhook_endpoints_updated_at on public.webhook_endpoints;
 create trigger trg_webhook_endpoints_updated_at
 before update on public.webhook_endpoints
 for each row execute function public.set_updated_at();
 
 -- Stripe billing (org-scoped)
-create table public.org_billing (
+create table if not exists public.org_billing (
   org_id uuid primary key references public.orgs(id) on delete cascade,
   stripe_customer_id text unique,
   stripe_subscription_id text unique,
@@ -435,11 +477,12 @@ create table public.org_billing (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_org_billing_updated_at on public.org_billing;
 create trigger trg_org_billing_updated_at
 before update on public.org_billing
 for each row execute function public.set_updated_at();
 
-create table public.billing_webhook_events (
+create table if not exists public.billing_webhook_events (
   id bigserial primary key,
   event_id text not null unique,
   event_type text not null,
@@ -452,7 +495,7 @@ create table public.billing_webhook_events (
 );
 
 -- Leads run traceability (parallel leads pipeline observability)
-create table public.leads_runs (
+create table if not exists public.leads_runs (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null unique references public.jobs(id) on delete cascade,
   org_id uuid not null references public.orgs(id) on delete cascade,
@@ -476,48 +519,52 @@ create table public.leads_runs (
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists trg_leads_runs_updated_at on public.leads_runs;
 create trigger trg_leads_runs_updated_at
 before update on public.leads_runs
 for each row execute function public.set_updated_at();
 
 -- Immutability triggers
+drop trigger if exists trg_orgs_immutable_created_at on public.orgs;
 create trigger trg_orgs_immutable_created_at
 before update on public.orgs
 for each row execute function public.prevent_created_at_change();
 
+drop trigger if exists trg_workspaces_immutable_created_at on public.workspaces;
 create trigger trg_workspaces_immutable_created_at
 before update on public.workspaces
 for each row execute function public.prevent_created_at_change();
 
+drop trigger if exists trg_api_keys_immutable_created_at on public.api_keys;
 create trigger trg_api_keys_immutable_created_at
 before update on public.api_keys
 for each row execute function public.prevent_created_at_change();
 
 -- Indexes
-create index idx_org_members_user_org on public.org_members(user_id, org_id);
-create index idx_workspaces_org on public.workspaces(org_id);
-create index idx_provider_credentials_workspace_provider on public.provider_credentials(workspace_id, provider);
-create index idx_model_policies_workspace_endpoint on public.workspace_model_policies(workspace_id, endpoint);
-create index idx_api_keys_workspace_status on public.api_keys(workspace_id, status, created_at desc);
-create index idx_api_keys_org_status on public.api_keys(org_id, status, created_at desc);
-create index idx_jobs_workspace_status_created on public.jobs(workspace_id, status, created_at desc);
-create index idx_jobs_api_key_created on public.jobs(api_key_id, created_at desc);
-create index idx_jobs_request on public.jobs(request_id);
-create index idx_job_events_job_created on public.job_events(job_id, created_at desc);
-create index idx_artifacts_workspace_created on public.artifacts(workspace_id, created_at desc);
-create index idx_usage_events_workspace_created on public.usage_events(workspace_id, created_at desc);
-create index idx_usage_events_api_key_created on public.usage_events(api_key_id, created_at desc);
-create index idx_usage_daily_rollups_workspace_date on public.usage_daily_rollups(workspace_id, usage_date desc);
-create index idx_audit_logs_org_created on public.audit_logs(org_id, created_at desc);
-create index idx_webhooks_workspace_status on public.webhook_endpoints(workspace_id, status);
-create index idx_org_billing_status on public.org_billing(org_id, billing_status);
-create index idx_org_billing_customer on public.org_billing(stripe_customer_id);
-create index idx_org_billing_subscription on public.org_billing(stripe_subscription_id);
-create index idx_billing_webhook_events_org_created on public.billing_webhook_events(org_id, created_at desc);
-create index idx_billing_webhook_events_subscription on public.billing_webhook_events(stripe_subscription_id);
-create index idx_leads_runs_workspace_created on public.leads_runs(workspace_id, created_at desc);
-create index idx_leads_runs_org_created on public.leads_runs(org_id, created_at desc);
-create index idx_leads_runs_status on public.leads_runs(status);
+create index if not exists idx_org_members_user_org on public.org_members(user_id, org_id);
+create index if not exists idx_workspaces_org on public.workspaces(org_id);
+create index if not exists idx_provider_credentials_workspace_provider on public.provider_credentials(workspace_id, provider);
+create index if not exists idx_model_policies_workspace_endpoint on public.workspace_model_policies(workspace_id, endpoint);
+create index if not exists idx_api_keys_workspace_status on public.api_keys(workspace_id, status, created_at desc);
+create index if not exists idx_api_keys_org_status on public.api_keys(org_id, status, created_at desc);
+create index if not exists idx_jobs_workspace_status_created on public.jobs(workspace_id, status, created_at desc);
+create index if not exists idx_jobs_api_key_created on public.jobs(api_key_id, created_at desc);
+create index if not exists idx_jobs_request on public.jobs(request_id);
+create index if not exists idx_job_events_job_created on public.job_events(job_id, created_at desc);
+create index if not exists idx_artifacts_workspace_created on public.artifacts(workspace_id, created_at desc);
+create index if not exists idx_usage_events_workspace_created on public.usage_events(workspace_id, created_at desc);
+create index if not exists idx_usage_events_api_key_created on public.usage_events(api_key_id, created_at desc);
+create index if not exists idx_usage_daily_rollups_workspace_date on public.usage_daily_rollups(workspace_id, usage_date desc);
+create index if not exists idx_audit_logs_org_created on public.audit_logs(org_id, created_at desc);
+create index if not exists idx_webhooks_workspace_status on public.webhook_endpoints(workspace_id, status);
+create index if not exists idx_org_billing_status on public.org_billing(org_id, billing_status);
+create index if not exists idx_org_billing_customer on public.org_billing(stripe_customer_id);
+create index if not exists idx_org_billing_subscription on public.org_billing(stripe_subscription_id);
+create index if not exists idx_billing_webhook_events_org_created on public.billing_webhook_events(org_id, created_at desc);
+create index if not exists idx_billing_webhook_events_subscription on public.billing_webhook_events(stripe_subscription_id);
+create index if not exists idx_leads_runs_workspace_created on public.leads_runs(workspace_id, created_at desc);
+create index if not exists idx_leads_runs_org_created on public.leads_runs(org_id, created_at desc);
+create index if not exists idx_leads_runs_status on public.leads_runs(status);
 
 -- Enable RLS
 alter table public.orgs enable row level security;
@@ -540,59 +587,74 @@ alter table public.billing_webhook_events enable row level security;
 alter table public.leads_runs enable row level security;
 
 -- orgs
+drop policy if exists "org members read orgs" on public.orgs;
 create policy "org members read orgs" on public.orgs
 for select using (public.is_org_member(id));
 
+drop policy if exists "owners/admins update orgs" on public.orgs;
 create policy "owners/admins update orgs" on public.orgs
 for update using (public.is_org_admin_or_owner(id));
 
 -- org_members
+drop policy if exists "org members read members" on public.org_members;
 create policy "org members read members" on public.org_members
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "org admins manage members" on public.org_members;
 create policy "org admins manage members" on public.org_members
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- workspaces
+drop policy if exists "org members read workspaces" on public.workspaces;
 create policy "org members read workspaces" on public.workspaces
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "org admins manage workspaces" on public.workspaces;
 create policy "org admins manage workspaces" on public.workspaces
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "users read own profile" on public.profiles;
 create policy "users read own profile" on public.profiles
 for select using (auth.uid() = id);
 
+drop policy if exists "users update own profile" on public.profiles;
 create policy "users update own profile" on public.profiles
 for update using (auth.uid() = id)
 with check (auth.uid() = id);
 
 -- provider_credentials
+drop policy if exists "admins read provider creds" on public.provider_credentials;
 create policy "admins read provider creds" on public.provider_credentials
 for select using (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins manage provider creds" on public.provider_credentials;
 create policy "admins manage provider creds" on public.provider_credentials
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- model policies
+drop policy if exists "members read model policies" on public.workspace_model_policies;
 create policy "members read model policies" on public.workspace_model_policies
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage model policies" on public.workspace_model_policies;
 create policy "admins manage model policies" on public.workspace_model_policies
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- api keys and scopes
+drop policy if exists "admins read api keys" on public.api_keys;
 create policy "admins read api keys" on public.api_keys
 for select using (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins manage api keys" on public.api_keys;
 create policy "admins manage api keys" on public.api_keys
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins read key scopes" on public.api_key_scopes;
 create policy "admins read key scopes" on public.api_key_scopes
 for select using (
   exists (
@@ -602,6 +664,7 @@ for select using (
   )
 );
 
+drop policy if exists "admins manage key scopes" on public.api_key_scopes;
 create policy "admins manage key scopes" on public.api_key_scopes
 for all using (
   exists (
@@ -619,74 +682,93 @@ with check (
 );
 
 -- jobs and events
+drop policy if exists "members read jobs" on public.jobs;
 create policy "members read jobs" on public.jobs
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage jobs" on public.jobs;
 create policy "admins manage jobs" on public.jobs
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "members read job events" on public.job_events;
 create policy "members read job events" on public.job_events
 for select using (public.is_workspace_member(workspace_id));
 
+drop policy if exists "admins manage job events" on public.job_events;
 create policy "admins manage job events" on public.job_events
 for all using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
 
+drop policy if exists "members read artifacts" on public.artifacts;
 create policy "members read artifacts" on public.artifacts
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage artifacts" on public.artifacts;
 create policy "admins manage artifacts" on public.artifacts
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- usage
+drop policy if exists "members read usage events" on public.usage_events;
 create policy "members read usage events" on public.usage_events
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage usage events" on public.usage_events;
 create policy "admins manage usage events" on public.usage_events
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "members read usage rollups" on public.usage_daily_rollups;
 create policy "members read usage rollups" on public.usage_daily_rollups
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage usage rollups" on public.usage_daily_rollups;
 create policy "admins manage usage rollups" on public.usage_daily_rollups
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- audit
+drop policy if exists "admins read audit logs" on public.audit_logs;
 create policy "admins read audit logs" on public.audit_logs
 for select using (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins write audit logs" on public.audit_logs;
 create policy "admins write audit logs" on public.audit_logs
 for insert with check (public.is_org_admin_or_owner(org_id));
 
 -- webhooks
+drop policy if exists "admins read webhooks" on public.webhook_endpoints;
 create policy "admins read webhooks" on public.webhook_endpoints
 for select using (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins manage webhooks" on public.webhook_endpoints;
 create policy "admins manage webhooks" on public.webhook_endpoints
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
 -- billing
+drop policy if exists "members read org billing" on public.org_billing;
 create policy "members read org billing" on public.org_billing
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage org billing" on public.org_billing;
 create policy "admins manage org billing" on public.org_billing
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
 
+drop policy if exists "admins read billing webhook events" on public.billing_webhook_events;
 create policy "admins read billing webhook events" on public.billing_webhook_events
 for select using (
   org_id is not null
   and public.is_org_admin_or_owner(org_id)
 );
 
+drop policy if exists "members read leads runs" on public.leads_runs;
 create policy "members read leads runs" on public.leads_runs
 for select using (public.is_org_member(org_id));
 
+drop policy if exists "admins manage leads runs" on public.leads_runs;
 create policy "admins manage leads runs" on public.leads_runs
 for all using (public.is_org_admin_or_owner(org_id))
 with check (public.is_org_admin_or_owner(org_id));
@@ -707,6 +789,15 @@ create index if not exists idx_leads_company_domain on public.leads(workspace_id
 alter table public.lead_finder_runs enable row level security;
 alter table public.leads enable row level security;
 drop policy if exists lead_finder_runs_workspace_members on public.lead_finder_runs;
-create policy lead_finder_runs_workspace_members on public.lead_finder_runs for all using (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid())) with check (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid()));
+create policy lead_finder_runs_workspace_members
+on public.lead_finder_runs
+for all
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+
 drop policy if exists leads_workspace_members on public.leads;
-create policy leads_workspace_members on public.leads for all using (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid())) with check (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid()));
+create policy leads_workspace_members
+on public.leads
+for all
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));

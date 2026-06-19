@@ -10,6 +10,15 @@ create index if not exists idx_leads_company_domain on public.leads(workspace_id
 alter table public.lead_finder_runs enable row level security;
 alter table public.leads enable row level security;
 drop policy if exists lead_finder_runs_workspace_members on public.lead_finder_runs;
-create policy lead_finder_runs_workspace_members on public.lead_finder_runs for all using (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid())) with check (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid()));
+create policy lead_finder_runs_workspace_members
+on public.lead_finder_runs
+for all
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+
 drop policy if exists leads_workspace_members on public.leads;
-create policy leads_workspace_members on public.leads for all using (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid())) with check (workspace_id in (select workspace_id from public.workspace_members where user_id = auth.uid()));
+create policy leads_workspace_members
+on public.leads
+for all
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
