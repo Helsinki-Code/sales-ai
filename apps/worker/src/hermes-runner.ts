@@ -75,7 +75,9 @@ export async function runHermes(input: RunHermesInput): Promise<HermesRunnerResu
       model: input.model,
       provider_api_key: input.providerApiKey,
       max_iterations: input.maxIterations,
-      max_tokens: input.maxTokens
+      max_tokens: input.maxTokens,
+      // A bounded failure is preferable to a job that appears stuck in the UI.
+      max_runtime_seconds: 120
     })
   });
 

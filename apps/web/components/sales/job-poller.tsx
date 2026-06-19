@@ -19,7 +19,6 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
   const [progress, setProgress] = useState<number>(0);
   const [stage, setStage] = useState<string>("");
   const [stageMessage, setStageMessage] = useState<string>("");
-  const [stageMetadata, setStageMetadata] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [startTime] = useState<number>(Date.now());
@@ -53,9 +52,6 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
         setProgress(jobData.progress || 0);
         setStage(jobData.stage || "");
         setStageMessage(sanitizeUiText(jobData.stageMessage || ""));
-        setStageMetadata(
-          jobData.stageMetadata && typeof jobData.stageMetadata === "object" ? jobData.stageMetadata : {}
-        );
 
         if (jobData.status === "complete") {
           setResult(jobData.result);
@@ -135,26 +131,6 @@ export function JobPoller({ jobId, endpoint, onComplete }: JobPollerProps) {
             </div>
             {stageMessage ? (
               <div style={{ color: "var(--slate)", fontSize: "0.82rem", marginBottom: "0.75rem" }}>{stageMessage}</div>
-            ) : null}
-            {Object.keys(stageMetadata).length > 0 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
-                {Object.entries(stageMetadata)
-                  .slice(0, 6)
-                  .map(([key, value]) => (
-                    <span
-                      key={key}
-                      style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: "999px",
-                        padding: "0.2rem 0.5rem",
-                        fontSize: "0.72rem",
-                        color: "var(--slate)"
-                      }}
-                    >
-                      {key}: {typeof value === "string" || typeof value === "number" ? value : JSON.stringify(value)}
-                    </span>
-                  ))}
-              </div>
             ) : null}
           </>
         )}

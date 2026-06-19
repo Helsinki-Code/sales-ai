@@ -14,7 +14,11 @@ function stripInstructionBlocks(raw: string): string {
 
 export function loadSkillPrompt(endpoint: SalesEndpoint): string {
   const config = getSharedConfig();
-  const promptPath = path.join(config.skillsDir, `sales-${endpoint}`, "SKILL.md");
+  // Quick Scan is the product's compact company-overview endpoint. The
+  // vendored skill pack calls that capability "research", so map it here
+  // rather than attempting to load the nonexistent sales-quick directory.
+  const skillEndpoint = endpoint === "quick" ? "research" : endpoint;
+  const promptPath = path.join(config.skillsDir, `sales-${skillEndpoint}`, "SKILL.md");
   const raw = readFileSync(promptPath, "utf8");
   const adapted = stripInstructionBlocks(raw).trim();
 

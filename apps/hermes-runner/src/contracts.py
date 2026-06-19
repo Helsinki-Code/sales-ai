@@ -21,6 +21,7 @@ class RunRequest(BaseModel):
     provider_api_key: SecretStr
     max_iterations: int = Field(default=18, ge=1, le=36)
     max_tokens: int = Field(default=8192, ge=256, le=16384)
+    max_runtime_seconds: int = Field(default=180, ge=30, le=600)
     max_delegation_depth: int = Field(default=2, ge=0, le=2)
     max_concurrent_children: int = Field(default=4, ge=1, le=6)
     enable_apify: bool = False

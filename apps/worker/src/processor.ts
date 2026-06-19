@@ -1,6 +1,6 @@
 import { decryptText, executeSkill, leadFinderResultV3Schema, llmProviders, normalizeLeadFinderRequest, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
 import { randomUUID } from "node:crypto";
-import { Queue, type Job, type ConnectionOptions } from "bullmq";
+import { Queue, UnrecoverableError, type Job, type ConnectionOptions } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
@@ -203,8 +203,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
       model,
       payload: payload.input
     });
-    await updateRunningState("agent_started", 12, "Hermes sales team started.", {
-      engine: "hermes",
+    await updateRunningState("agent_started", 12, "Sales intelligence team started.", {
       agent_run_id: agentRunId
     });
 
@@ -227,12 +226,8 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
         maxIterations: env.HERMES_MAX_ITERATIONS,
         maxTokens: env.HERMES_MAX_TOKENS,
         onEvent: async (event) => {
-          await updateRunningState(event.stage, event.progress, event.message, {
-            engine: "hermes",
-            agent_run_id: agentRunId,
-            event_type: event.type,
-            ...(event.metadata ?? {})
-          });
+          const researching = event.type.includes("web_") || event.type.includes("tool");
+          await updateRunningState(researching ? "researching" : "analyzing", event.progress, researching ? "Researching verified company information." : "Analyzing research findings.");
           await recordAgentEvent({
             runId: agentRunId,
             type: event.type,
@@ -244,7 +239,7 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
       resultData = runnerResult.data;
       if (payload.endpoint === "leads") {
         if (!Array.isArray(resultData)) {
-          throw new Error("Hermes Lead Finder returned a non-array result.");
+          throw new Error("Sales intelligence workflow returned an invalid lead result.");
         }
         const leads = resultData.map((lead) => leadFinderResultV3Schema.parse(lead));
         const request = normalizeLeadFinderRequest(payload.input);
@@ -282,8 +277,11 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
         toolCallCount: runnerResult.tool_call_count ?? 0
       });
     } catch (error) {
-      await failAgentRun(agentRunId, error instanceof Error ? error.message : "Hermes runner failed.");
-      throw error;
+      await failAgentRun(agentRunId, error instanceof Error ? error.message : "Sales intelligence workflow failed.");
+      // Retrying the same completed-but-invalid model output burns customer
+      // units and causes the UI to appear to restart endlessly. A fresh user
+      // request is required after a contract or provider failure.
+      throw new UnrecoverableError(error instanceof Error ? error.message : "Sales intelligence workflow failed.");
     }
   } else if (payload.endpoint === "leads" && (env.LEADS_ENGINE_MODE === "managed_v3" || env.LEADS_ENGINE_MODE === "mock")) {
     const resolved = await resolveModelPolicy(

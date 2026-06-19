@@ -80,7 +80,7 @@ def _run_hermes(request: RunRequest, emit: callable) -> RunResult:
         model=request.model,
         max_iterations=request.max_iterations,
         max_tokens=request.max_tokens,
-        enabled_toolsets=["web", "delegation"],
+        enabled_toolsets=["web"],
         disabled_toolsets=["terminal", "file", "browser", "messaging", "cron", "memory", "code_execution"],
         quiet_mode=True,
         ephemeral_system_prompt=build_system_prompt(request),
@@ -93,12 +93,21 @@ def _run_hermes(request: RunRequest, emit: callable) -> RunResult:
     )
     with _active_agents_lock:
         _active_agents[request.run_id] = agent
+    timeout = threading.Timer(request.max_runtime_seconds, lambda: agent.interrupt("Sales AI runtime budget exceeded"))
+    timeout.daemon = True
+    timeout.start()
     try:
         raw = agent.chat(build_user_prompt(request))
     finally:
+        timeout.cancel()
         with _active_agents_lock:
             _active_agents.pop(request.run_id, None)
     data = _json_from_response(raw)
+    # Accept the common `{ "leads": [...] }` transport wrapper defensively.
+    # The worker still validates every item against the product's V3 contract,
+    # so this never turns an arbitrary research report into saved leads.
+    if request.endpoint == "leads" and isinstance(data, dict) and isinstance(data.get("leads"), list):
+        data = data["leads"]
     elapsed = int((time.monotonic() - started) * 1000)
     usage = getattr(agent, "last_usage", None) or {}
     token_usage = {key: int(value) for key, value in usage.items() if isinstance(value, (int, float))}
