@@ -50,3 +50,7 @@ See:
 ## SQL setup
 
 Run `supabase/schema.sql` in Supabase SQL Editor before starting the platform.
+
+
+### Lead Finder V3
+Rich lead prospecting requests are supported at `/api/v1/sales/leads`; see `docs/LEAD_FINDER.md`. Run `supabase/migrations/20260618105517_lead_finder_v3_tables.sql` after base migrations.

@@ -1,0 +1,1 @@
+export function LeadScoreBreakdown({ score }: { score: any }) { const breakdown = score?.breakdown ?? {}; return <div className="detail-panel"><strong>{score?.grade ?? "-"} · {score?.total ?? 0}/100</strong>{Object.entries(breakdown).map(([k,v]) => <p className="muted small" key={k}>{k}: {String(v)}</p>)}</div>; }

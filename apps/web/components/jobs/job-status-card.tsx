@@ -1,0 +1,2 @@
+import { Badge } from "@/components/ui/badge";
+export function JobStatusCard({ state, jobId }: { state: string; jobId?: string | null }) { return <div className="ui-card"><div className="ui-card-header"><h3 className="ui-card-title">Run status</h3><Badge variant={state === "complete" ? "success" : state === "failed" ? "danger" : "accent"}>{state}</Badge></div><p className="muted small">{jobId ? `Job ${jobId}` : "Configure your ICP and launch a run."}</p></div>; }

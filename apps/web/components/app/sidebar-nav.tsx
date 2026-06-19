@@ -1,60 +1,7 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
-
-const appLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/reference", label: "API Reference" },
-  { href: "/keys", label: "API Keys" },
-  { href: "/playground", label: "Playground" },
-  { href: "/usage", label: "Usage" },
-  { href: "/billing", label: "Billing" },
-  { href: "/settings", label: "Settings" }
-];
-
-export function SidebarNav() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-    setIsLoggingOut(true);
-
-    try {
-      await supabase.auth.signOut();
-      router.replace("/login");
-      router.refresh();
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
-  return (
-    <>
-      <nav className="sidebar-nav">
-        {appLinks.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
-          return (
-            <Link key={link.href} href={link.href} className={isActive ? "active" : undefined}>
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <button
-        type="button"
-        onClick={handleLogout}
-        className="sidebar-logout"
-        disabled={isLoggingOut}
-      >
-        {isLoggingOut ? "Logging out..." : "Logout"}
-      </button>
-    </>
-  );
-}
+const groups = [ { label: "Product", links: [{ href: "/dashboard", label: "Overview", icon: "▦" }, { href: "/lead-finder", label: "Lead Finder", icon: "⌕" }, { href: "/jobs", label: "Jobs", icon: "◌" }, { href: "/leads", label: "Leads", icon: "◎" }] }, { label: "Developer", links: [{ href: "/playground", label: "API Playground", icon: "▸" }, { href: "/reference", label: "API Reference", icon: "{}" }, { href: "/keys", label: "API Keys", icon: "◇" }] }, { label: "Admin", links: [{ href: "/usage", label: "Usage", icon: "▥" }, { href: "/billing", label: "Billing", icon: "$" }, { href: "/settings", label: "Settings", icon: "⚙" }] } ];
+export function SidebarNav() { const pathname = usePathname(); const router = useRouter(); const supabase = createClient(); const [isLoggingOut, setIsLoggingOut] = useState(false); const handleLogout = async () => { if (isLoggingOut) return; setIsLoggingOut(true); try { await supabase.auth.signOut(); router.replace("/login"); router.refresh(); } finally { setIsLoggingOut(false); } }; return <><nav className="sidebar-nav">{groups.map((group) => <section key={group.label} className="nav-group"><div className="nav-group-label">{group.label}</div>{group.links.map((link) => { const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`); return <Link key={link.href} href={link.href} className={isActive ? "active" : undefined}><span>{link.icon}</span>{link.label}</Link>; })}</section>)}</nav><button type="button" onClick={handleLogout} className="sidebar-logout" disabled={isLoggingOut}>{isLoggingOut ? "Logging out..." : "Logout"}</button></>; }

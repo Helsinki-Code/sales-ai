@@ -1,0 +1,1 @@
+export function LeadActions() { return <div className="pill-row"><button className="ui-button ui-button-secondary">Bulk export</button><button className="ui-button ui-button-ghost">Dismiss</button></div>; }

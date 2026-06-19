@@ -1,5 +1,5 @@
 import http from "node:http";
-import { Queue, Worker } from "bullmq";
+import { Queue, Worker, type ConnectionOptions } from "bullmq";
 import { getEnv } from "./config.js";
 import { logger } from "./logger.js";
 import { redis } from "./redis.js";
@@ -9,7 +9,7 @@ const env = getEnv();
 const queueName = "sales-jobs";
 
 const dlq = new Queue<SalesJobPayload>(`${queueName}-dlq`, {
-  connection: redis,
+  connection: redis as unknown as ConnectionOptions,
   prefix: env.BULLMQ_PREFIX
 });
 
@@ -19,7 +19,7 @@ const worker = new Worker<SalesJobPayload>(
     await processSalesJob(job);
   },
   {
-    connection: redis,
+    connection: redis as unknown as ConnectionOptions,
     prefix: env.BULLMQ_PREFIX,
     concurrency: env.WORKER_CONCURRENCY
   }

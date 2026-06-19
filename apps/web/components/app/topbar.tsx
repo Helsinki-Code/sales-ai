@@ -1,0 +1,2 @@
+import Link from "next/link";
+export function Topbar() { return <header className="app-topbar"><div><p className="eyebrow">Workspace</p><strong>Sales AI Control Center</strong></div><div className="topbar-search">⌘K Search jobs, leads, docs</div><div className="topbar-actions"><span className="unit-pill">Lead units ready</span><Link href="/settings" className="avatar-button">Account</Link></div></header>; }

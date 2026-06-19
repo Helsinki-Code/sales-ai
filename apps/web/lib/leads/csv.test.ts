@@ -1,0 +1,1 @@
+import { describe, expect, it } from "vitest"; import { leadsToCsv } from "./csv"; describe("leadsToCsv",()=>{it("exports expected columns",()=>{const csv=leadsToCsv([{company_name:"Acme",score:90,grade:"A",result_payload:{score:{reasons:["Fit"]},evidence:[{url:"https://a.com"}]}}]); expect(csv.split("\n")[0]).toContain("company_name"); expect(csv).toContain("Acme");});});

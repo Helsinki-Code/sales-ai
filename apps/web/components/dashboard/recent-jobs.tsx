@@ -1,0 +1,1 @@
+export function RecentJobs() { return <div className="ui-card"><h3>Recent lead finder jobs</h3><p className="muted">Open the Jobs page for live async work across all endpoints.</p><a className="ui-button ui-button-secondary" href="/jobs">View jobs</a></div>; }

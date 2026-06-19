@@ -1,0 +1,1 @@
+export function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) { return <div className="ui-card"><p className="muted small">{label}</p><div className="kpi">{value}</div>{hint ? <p className="muted small">{hint}</p> : null}</div>; }

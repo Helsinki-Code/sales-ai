@@ -1,10 +1,12 @@
-import { decryptText, executeSkill, llmProviders, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
-import { Queue, type Job } from "bullmq";
+import { decryptText, executeSkill, llmProviders, normalizeLeadFinderRequest, type LlmProvider, type SalesEndpoint } from "@sales-ai/shared";
+import { Queue, type Job, type ConnectionOptions } from "bullmq";
 import { getEnv } from "./config.js";
 import { redis } from "./redis.js";
 import { supabaseAdmin } from "./supabase.js";
 import { LeadsEngineError as ParallelLeadsEngineError, runParallelLeadsEngine } from "./leads-engine.js";
 import { LeadsEngineError as GooseLeadsEngineError, runGooseLeadsEngine } from "./goose-leads-engine.js";
+import { selectLeadFinderEngine } from "./leads/lead-finder-engine.js";
+import { persistLeadFinderRun } from "./leads/persist-leads.js";
 import { consumeUnitsForJob, reverseUnitsForJob } from "./unit-billing.js";
 
 export type SalesJobPayload = {
@@ -22,7 +24,7 @@ export type SalesJobPayload = {
 const env = getEnv();
 const queueName = "sales-jobs";
 const salesQueue = new Queue<SalesJobPayload>(queueName, {
-  connection: redis,
+  connection: redis as unknown as ConnectionOptions,
   prefix: env.BULLMQ_PREFIX,
   defaultJobOptions: {
     removeOnComplete: 1000,
@@ -171,7 +173,47 @@ export async function processSalesJob(job: Job<SalesJobPayload>): Promise<void> 
     leadUnits: 0
   };
 
-  if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "goose_v1") {
+  if (payload.endpoint === "leads" && (env.LEADS_ENGINE_MODE === "managed_v3" || env.LEADS_ENGINE_MODE === "mock")) {
+    const resolved = await resolveModelPolicy(
+      payload.workspaceId,
+      payload.endpoint,
+      payload.requestedProvider,
+      payload.requestedModel
+    );
+    provider = resolved.provider;
+    model = resolved.model;
+    const apiKey = await getWorkspaceApiKey(payload.workspaceId, provider);
+    const request = normalizeLeadFinderRequest(payload.input);
+    await updateRunningState("normalize_request", 12, "Normalized lead finder request.");
+    const engine = selectLeadFinderEngine(env.LEADS_ENGINE_MODE);
+    const leadFinderResult = await engine.run({
+      jobId: payload.jobId,
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      request,
+      llm: { provider, model, apiKey },
+      onProgress: async ({ stage, progress, message, metadata }) => updateRunningState(stage, progress, message, metadata)
+    });
+    resultData = leadFinderResult.leads;
+    durationMs = Date.now() - startedAt;
+    model = `${provider}:${resolved.model}`;
+    managedUsage = {
+      crawlerRuns: leadFinderResult.stats.crawlerRuns,
+      pagesCrawled: leadFinderResult.stats.pagesCrawled,
+      verificationRuns: leadFinderResult.stats.verificationRuns,
+      cycleCount: 1,
+      estimatedCostUsd: leadFinderResult.stats.estimatedCostUsd
+    };
+    await persistLeadFinderRun({
+      supabase: supabaseAdmin,
+      jobId: payload.jobId,
+      orgId: payload.orgId,
+      workspaceId: payload.workspaceId,
+      request,
+      leads: leadFinderResult.leads,
+      stats: leadFinderResult.stats
+    });
+  } else if (payload.endpoint === "leads" && env.LEADS_ENGINE_MODE === "goose_v1") {
     const resolved = await resolveModelPolicy(
       payload.workspaceId,
       payload.endpoint,

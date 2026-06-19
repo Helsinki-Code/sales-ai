@@ -88,3 +88,8 @@ Leads v2 result item shape (from `GET /jobs/:jobId`):
 
 OpenAPI: `/api/v1/openapi.json`
 Swagger UI: `/api/v1/docs`
+
+
+## Lead Finder V3
+
+`POST /api/v1/sales/leads` accepts both legacy `{ url, count }` and the V3 prospecting spec with `seller`, `target`, `constraints`, and `output.format = "leads_v3"`. The endpoint returns `202` with `jobId`; poll `/api/v1/jobs/{jobId}` for V3 lead results. CSV export is available from the dashboard at `/api/admin/leads/export?runId=...` and enforces workspace isolation.

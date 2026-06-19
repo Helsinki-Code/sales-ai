@@ -1,0 +1,1 @@
+export function LeadQualitySummary() { return <div className="ui-card"><h3>Lead quality trend</h3><p className="muted">Lead scoring uses ICP fit, persona fit, signals, and evidence quality.</p><a className="ui-button ui-button-primary" href="/lead-finder">Find your next 25 leads</a></div>; }

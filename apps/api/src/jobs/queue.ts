@@ -1,4 +1,4 @@
-import { Queue } from "bullmq";
+import { Queue, type ConnectionOptions } from "bullmq";
 import { getEnv } from "../config/env.js";
 import { redis } from "../lib/redis.js";
 
@@ -6,7 +6,7 @@ const env = getEnv();
 export const SALES_QUEUE_NAME = "sales-jobs";
 
 export const salesQueue = new Queue(SALES_QUEUE_NAME, {
-  connection: redis,
+  connection: redis as unknown as ConnectionOptions,
   prefix: env.BULLMQ_PREFIX,
   defaultJobOptions: {
     removeOnComplete: 1000,

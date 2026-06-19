@@ -10,3 +10,6 @@ export * from "./leads/types.js";
 export * from "./billing/units.js";
 export * from "./utils/crypto.js";
 export * from "./utils/json.js";
+export * from "./leads/v3.js";
+export * from "./leads/normalize.js";
+export * from "./leads/scoring-v3.js";

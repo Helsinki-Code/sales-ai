@@ -5,12 +5,8 @@ function getSupabaseKey(): string {
 }
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = getSupabaseKey();
-
-  if (!url || !key) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL and publishable/anon key");
-  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://example.supabase.co";
+  const key = getSupabaseKey() || "build-time-placeholder-anon-key";
 
   return createBrowserClient(url, key) as any;
 }

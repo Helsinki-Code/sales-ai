@@ -1,0 +1,5 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceContext } from "@/lib/workspace";
+import { leadsToCsv } from "@/lib/leads/csv";
+export async function GET(request: NextRequest){ const supabase=await createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user) return NextResponse.json({error:"Unauthorized"},{status:401}); const {workspaceId}=await getWorkspaceContext(user.id); const runId=request.nextUrl.searchParams.get("runId"); const ids=request.nextUrl.searchParams.get("leadIds")?.split(",").filter(Boolean); let query=supabase.from("leads").select("*").eq("workspace_id",workspaceId); if(runId) query=query.eq("run_id",runId); if(ids?.length) query=query.in("id",ids); const {data,error}=await query.order("score",{ascending:false}).limit(1000); if(error) return NextResponse.json({error:error.message},{status:500}); return new NextResponse(leadsToCsv(data ?? []), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": "attachment; filename=leads.csv" } }); }

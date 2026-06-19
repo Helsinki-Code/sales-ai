@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function LeadFinderDocsPage(){return <main className="container main-section"><h1 className="page-title">Lead Finder V3</h1><p className="muted">Define ICP, run discovery, inspect evidence, and export qualified leads.</p><pre>{`POST /api/v1/sales/leads\n{ "seller": { "website": "https://sales-ai.app" }, "output": { "format": "leads_v3" } }`}</pre><Link className="cta" href="/lead-finder">Open Lead Finder</Link></main>}

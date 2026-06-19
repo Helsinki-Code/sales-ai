@@ -1,5 +1,7 @@
 "use client";
 
+import { LeadResultsTable } from "@/components/lead-finder/lead-results-table";
+
 interface ResultViewerProps {
   result: any;
 }
@@ -39,6 +41,7 @@ export function ResultViewer({ result }: ResultViewerProps) {
 
   const isJson = typeof data === "object" && data !== null;
   const isArray = Array.isArray(data);
+  const isLeadsV3Array = isArray && data.length > 0 && data[0]?.company && data[0]?.score?.breakdown;
   const isLeadsV2Array =
     isArray &&
     data.length > 0 &&
@@ -192,7 +195,7 @@ export function ResultViewer({ result }: ResultViewerProps) {
             {data}
           </pre>
         ) : isArray ? (
-          isLeadsV2Array ? renderLeadsCards(data) : renderArray(data)
+          isLeadsV3Array ? <LeadResultsTable leads={data} /> : isLeadsV2Array ? renderLeadsCards(data) : renderArray(data)
         ) : isJson ? (
           <div style={{ fontSize: "0.85rem" }}>
             {Object.entries(data).map(([key, value]) => (

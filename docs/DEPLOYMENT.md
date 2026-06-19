@@ -56,3 +56,7 @@ Operational playbook:
 3. Create API key with `sales:run`, `jobs:read`, `jobs:write` scopes.
 4. Call `POST /api/v1/sales/qualify`.
 5. Call `POST /api/v1/sales/prospect` with `Idempotency-Key` and poll `/api/v1/jobs/:jobId`.
+
+
+## Lead Finder V3 migration
+Apply `supabase/migrations/20260618105517_lead_finder_v3_tables.sql` after existing schema migrations to enable lead persistence and CSV export.

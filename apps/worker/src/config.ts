@@ -10,7 +10,7 @@ const schema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     INTERNAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
     WORKER_CONCURRENCY: z.coerce.number().default(4),
-    LEADS_ENGINE_MODE: z.enum(["legacy", "parallel_v1", "goose_v1"]).default("goose_v1"),
+    LEADS_ENGINE_MODE: z.enum(["legacy", "parallel_v1", "goose_v1", "managed_v3", "mock"]).default("managed_v3"),
     PARALLEL_API_KEY: z.string().optional(),
     PARALLEL_BASE_URL: z.string().url().default("https://api.parallel.ai"),
     PARALLEL_TIMEOUT_MS: z.coerce.number().default(120000),

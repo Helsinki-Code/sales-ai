@@ -1,3 +1,4 @@
+import { leadFinderRequestSchema } from "@sales-ai/shared";
 import { z } from "zod";
 
 export const endpointEnum = z.enum([
@@ -19,7 +20,7 @@ export const endpointEnum = z.enum([
 ]);
 
 export const urlSchema = z.object({ url: z.string().url() });
-export const leadsSchema = z.object({ url: z.string().url(), count: z.number().int().min(5).max(100) });
+export const leadsSchema = leadFinderRequestSchema;
 export const reportSchema = z.object({ jobIds: z.array(z.string().uuid()).min(1) });
 
 export const outreachSchema = z.object({

@@ -21,10 +21,11 @@ export const openApiSpec = {
   info: {
     title: "Sales AI API",
     version: "1.0.0",
-    description: "Multi-tenant Sales AI REST API with strict BYOK Anthropic model execution."
+    description: "Multi-tenant Sales AI REST API with async Lead Finder V3, legacy lead request compatibility, job polling, and CSV export."
   },
   servers: [{ url: "https://api.sales-ai.app" }],
   components: {
+    schemas: { LeadFinderV3Request: { type: "object", properties: { seller: { type: "object", properties: { website: { type: "string", format: "uri" }, description: { type: "string" }, valueProposition: { type: "string" } }, required: ["website"] }, target: { type: "object" }, constraints: { type: "object" }, output: { type: "object", properties: { format: { const: "leads_v3" } } } }, required: ["seller"] }, LeadFinderV3Result: { type: "object", properties: { company: { type: "object" }, contact: { type: "object" }, score: { type: "object" }, evidence: { type: "array" }, signals: { type: "array" } } } },
     securitySchemes: {
       ApiKeyBearer: {
         type: "http",
